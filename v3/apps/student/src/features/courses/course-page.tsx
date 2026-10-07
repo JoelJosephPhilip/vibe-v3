@@ -1,8 +1,11 @@
 import { Link } from '@tanstack/react-router';
-import { CheckIcon, ChevronDownIcon, ChevronRightIcon, CircleIcon, ShieldCheckIcon } from 'lucide-react';
+import { CheckIcon, ChevronDownIcon, ChevronRightIcon, CircleIcon, LockIcon, ShieldCheckIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { Skeleton } from '@/components/ui/skeleton';
+import { TrackBadge } from '@/features/learn/lesson-page';
+import { useCourseSettings } from '@/features/learn/queries';
+import { TRACKS, useCourseTrack, type Track } from '@/features/learn/tracks';
 import { cn } from '@/lib/utils';
 
 import { CourseCover, ProgressBar, itemTypeMeta } from './course-ui';
@@ -25,6 +28,10 @@ export function CoursePage({ courseId, versionId }: { courseId: string; versionI
   const path = useCurrentPath(courseId, versionId);
   const moduleProgress = useModuleProgress(courseId, versionId);
   const consent = useEthicsConsent(courseId, versionId);
+  const settings = useCourseSettings(courseId, versionId);
+  const [track, setTrack] = useCourseTrack(versionId);
+  // In linear courses the backend serves only lessons already reached (blue can't skip ahead).
+  const linear = settings.data?.settings.linearProgressionEnabled ?? true;
   // The course name/description live on the enrolment, not the version.
   const enrollment = useEnrollments('active').data?.enrollments.find((e) => e.courseVersionId === versionId);
 
@@ -86,13 +93,16 @@ export function CoursePage({ courseId, versionId }: { courseId: string; versionI
           <Link
             to="/learn/$courseId/$versionId/$moduleId/$sectionId/$itemId"
             params={{ courseId, versionId, moduleId: path.data.module.id, sectionId: path.data.section.id, itemId: path.data.item.id }}
+            search={{ track }}
             className="mt-6 inline-flex h-10 items-center gap-2 rounded-md bg-foreground px-4 text-sm font-medium text-background hover:bg-foreground/85"
           >
-            {pct > 0 ? 'Continue where you left off' : 'Start course'}
+            {track === 'blue' ? 'Study where you left off' : pct > 0 ? 'Continue where you left off' : 'Start course'}
           </Link>
         ) : (
           percentage.data?.completed && <p className="mt-6 text-sm font-medium text-emerald-700 dark:text-emerald-400">Course completed</p>
         )}
+
+        <TrackSwitcher track={track} onChange={setTrack} />
 
         <section aria-labelledby="syllabus-title" className="mt-10 border-t border-border pt-8">
           <h2 id="syllabus-title" className="text-xl font-semibold">
@@ -109,6 +119,8 @@ export function CoursePage({ courseId, versionId }: { courseId: string; versionI
                 module={m}
                 courseId={courseId}
                 versionId={versionId}
+                track={track}
+                linear={linear}
                 currentPath={path.data}
                 progress={moduleProgress.data?.find((p) => p.moduleId === m.moduleId)}
               />
@@ -150,6 +162,8 @@ function ModuleBlock({
   module: m,
   courseId,
   versionId,
+  track,
+  linear,
   currentPath,
   progress,
 }: {
@@ -157,6 +171,8 @@ function ModuleBlock({
   module: CourseModule;
   courseId: string;
   versionId: string;
+  track: Track;
+  linear: boolean;
   currentPath?: CurrentPath;
   progress?: { totalItems: number; completedItems: number };
 }) {
@@ -183,6 +199,8 @@ function ModuleBlock({
             key={s.sectionId}
             courseId={courseId}
             versionId={versionId}
+            track={track}
+            linear={linear}
             moduleId={m.moduleId}
             sectionId={s.sectionId}
             name={s.name}
@@ -198,6 +216,8 @@ function ModuleBlock({
 function SectionBlock({
   courseId,
   versionId,
+  track,
+  linear,
   moduleId,
   sectionId,
   name,
@@ -206,6 +226,8 @@ function SectionBlock({
 }: {
   courseId: string;
   versionId: string;
+  track: Track;
+  linear: boolean;
   moduleId: string;
   sectionId: string;
   name: string;
@@ -241,6 +263,33 @@ function SectionBlock({
             const meta = itemTypeMeta(item.type);
             const Icon = meta.icon;
             const isCurrent = item._id === currentItemId;
+            // Linear courses only serve lessons already reached; blue can't open the rest.
+            const locked = track === 'blue' && linear && !item.isCompleted && !isCurrent;
+            const row = (
+              <>
+                <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-foreground/80">
+                  <Icon className="size-4" aria-hidden />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{item.name}</p>
+                  <p className="text-xs text-muted-foreground">{locked ? 'Unlocks on the green track' : meta.label}</p>
+                </div>
+                {item.isCompleted ? (
+                  <span className="grid size-6 place-items-center rounded-full bg-emerald-600 text-white" title="Completed">
+                    <CheckIcon className="size-3.5" aria-hidden />
+                    <span className="sr-only">Completed</span>
+                  </span>
+                ) : locked ? (
+                  <LockIcon className="size-4 text-muted-foreground/60" aria-label="Locked" />
+                ) : !isCurrent ? (
+                  <CircleIcon className="size-5 text-muted-foreground/50" aria-label="Not started" />
+                ) : null}
+              </>
+            );
+            const rowClass = cn(
+              'flex items-center gap-3 rounded-lg border bg-card px-3 py-3',
+              isCurrent ? (track === 'blue' ? 'border-sky-500 ring-2 ring-sky-500/30' : 'border-primary ring-2 ring-primary/30') : 'border-border',
+            );
             return (
               <li key={item._id} id={isCurrent ? 'up-next' : undefined} className="relative scroll-mt-28">
                 {isCurrent && (
@@ -248,35 +297,58 @@ function SectionBlock({
                     Up next
                   </span>
                 )}
-                <Link
-                  to="/learn/$courseId/$versionId/$moduleId/$sectionId/$itemId"
-                  params={{ courseId, versionId, moduleId, sectionId, itemId: item._id }}
-                  className={cn(
-                    'flex items-center gap-3 rounded-lg border bg-card px-3 py-3 transition-colors hover:border-foreground/25',
-                    isCurrent ? 'border-primary ring-2 ring-primary/30' : 'border-border',
-                  )}
-                >
-                  <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-foreground/80">
-                    <Icon className="size-4" aria-hidden />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{item.name}</p>
-                    <p className="text-xs text-muted-foreground">{meta.label}</p>
-                  </div>
-                  {item.isCompleted ? (
-                    <span className="grid size-6 place-items-center rounded-full bg-emerald-600 text-white" title="Completed">
-                      <CheckIcon className="size-3.5" aria-hidden />
-                      <span className="sr-only">Completed</span>
-                    </span>
-                  ) : !isCurrent ? (
-                    <CircleIcon className="size-5 text-muted-foreground/50" aria-label="Not started" />
-                  ) : null}
-                </Link>
+                {locked ? (
+                  <div className={cn(rowClass, 'opacity-60')}>{row}</div>
+                ) : (
+                  <Link
+                    to="/learn/$courseId/$versionId/$moduleId/$sectionId/$itemId"
+                    params={{ courseId, versionId, moduleId, sectionId, itemId: item._id }}
+                    search={{ track }}
+                    className={cn(rowClass, 'transition-colors hover:border-foreground/25')}
+                  >
+                    {row}
+                  </Link>
+                )}
               </li>
             );
           })}
         </ul>
       )}
     </div>
+  );
+}
+
+/** Luma-style segmented switch between the two ways through a course. */
+function TrackSwitcher({ track, onChange }: { track: Track; onChange: (t: Track) => void }) {
+  return (
+    <section aria-labelledby="track-title" className="mt-8 rounded-2xl border border-border bg-card p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h2 id="track-title" className="font-semibold">
+          How do you want to go through this course?
+        </h2>
+        <div role="radiogroup" aria-label="Track" className="inline-flex w-fit rounded-lg bg-muted p-1">
+          {(['green', 'blue'] as const).map((t) => (
+            <button
+              key={t}
+              type="button"
+              role="radio"
+              aria-checked={track === t}
+              onClick={() => onChange(t)}
+              className={cn(
+                'inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors',
+                track === t ? 'bg-background shadow-xs' : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              <span className={cn('size-2 rounded-full', t === 'blue' ? 'bg-sky-500' : 'bg-emerald-500')} aria-hidden />
+              {TRACKS[t].label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="mt-3 flex items-start gap-3">
+        <TrackBadge track={track} className="shrink-0" />
+        <p className="text-sm text-muted-foreground">{TRACKS[track].description}</p>
+      </div>
+    </section>
   );
 }

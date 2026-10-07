@@ -24,7 +24,7 @@ describe('home', () => {
     await waitFor(() =>
       expect(within(card).getByRole('link', { name: /start course/i })).toHaveAttribute(
         'href',
-        `/learn/${course.courseId}/${course.courseVersionId}/${p.module.id}/${p.section.id}/${p.item.id}`,
+        `/learn/${course.courseId}/${course.courseVersionId}/${p.module.id}/${p.section.id}/${p.item.id}?track=green`,
       ),
     );
   });

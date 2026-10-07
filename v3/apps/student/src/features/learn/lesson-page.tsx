@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
-import { unwrap } from '@vibe/api';
-import { CheckCircle2Icon, Loader2Icon, LockIcon, ShieldAlertIcon, XIcon } from 'lucide-react';
+import { ApiError, unwrap } from '@vibe/api';
+import { ArrowLeftIcon, ArrowRightIcon, CheckCircle2Icon, Loader2Icon, LockIcon, ShieldAlertIcon, XIcon } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -10,10 +10,18 @@ import { toast } from 'sonner';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { itemTypeMeta, ProgressBar } from '@/features/courses/course-ui';
-import { courseKeys, useCurrentPath, useEthicsConsent, useProgressPercentage, type CurrentPath } from '@/features/courses/queries';
+import {
+  courseKeys,
+  useCourseVersion,
+  useCurrentPath,
+  useEthicsConsent,
+  useProgressPercentage,
+  type CurrentPath,
+} from '@/features/courses/queries';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
+import { CameraBubble, CameraRequired, useCameraPresence } from './camera-presence';
 import { ConsentGate } from './consent-gate';
 import {
   heartbeat,
@@ -27,56 +35,96 @@ import {
   type LessonItem,
   type LessonRef,
 } from './queries';
+import { TRACKS, useCourseTrack, useFlatSyllabus, type Track } from './tracks';
 import { YouTubePlayer } from './youtube-player';
 
 const HEARTBEAT_MS = 30_000;
+const VIEWABLE = new Set(['VIDEO', 'BLOG']);
 /** The backend's reply when a linear-progression course is opened out of order. */
 const OUT_OF_ORDER = /do not match current progress/i;
-const SUPPORTED = new Set(['VIDEO', 'BLOG']);
 
-export function LessonPage(ref: LessonRef) {
+type LessonProps = LessonRef & { track: Track };
+
+export function LessonPage({ track, ...ref }: LessonProps) {
   const lesson = useLesson(ref);
   const consent = useEthicsConsent(ref.courseId, ref.versionId);
   const percentage = useProgressPercentage(ref.courseId, ref.versionId);
+  const [, rememberTrack] = useCourseTrack(ref.versionId);
+  useEffect(() => rememberTrack(track), [track, rememberTrack]);
 
-  let body: ReactNode;
-  if (lesson.isPending || consent.isPending) {
-    body = (
-      <div className="mx-auto w-full max-w-3xl space-y-4 px-4 py-10">
-        <Skeleton className="h-8 w-1/2" />
-        <Skeleton className="aspect-video w-full rounded-2xl" />
-      </div>
-    );
-  } else if (lesson.isError) {
-    body = <Notice title="We couldn’t open this lesson" ref_={ref}>{lesson.error.message}</Notice>;
-  } else if (!consent.data?.signed) {
-    body = <ConsentGate courseId={ref.courseId} versionId={ref.versionId} />;
-  } else if (isProctored(lesson.data.proctoringDetectors)) {
-    // Never let a proctored lesson run without its proctoring. The engine is
-    // being ported next; until then these lessons stay closed here.
-    body = (
-      <Notice title="This lesson is proctored" icon={<ShieldAlertIcon className="size-6" aria-hidden />} ref_={ref}>
-        Proctored lessons need the camera-based integrity checks, which aren’t available in this version of the app yet.
-      </Notice>
-    );
-  } else if (!SUPPORTED.has(lesson.data.type)) {
-    body = (
-      <Notice title={`${itemTypeMeta(lesson.data.type).label} lessons aren’t available here yet`} ref_={ref}>
-        This version of the app can open videos and readings so far.
-      </Notice>
-    );
-  } else {
-    return <ActiveLesson key={ref.itemId} lessonRef={ref} item={lesson.data} progress={percentage.data?.percentCompleted ?? 0} />;
-  }
-
-  return (
-    <LessonFrame lessonRef={ref} title={lesson.data?.name} progress={percentage.data?.percentCompleted ?? 0}>
+  const progress = percentage.data?.percentCompleted ?? 0;
+  const frame = (body: ReactNode) => (
+    <LessonFrame lessonRef={ref} track={track} title={lesson.data?.name} progress={progress}>
       {body}
     </LessonFrame>
   );
+
+  if (lesson.isPending || consent.isPending) {
+    return frame(
+      <div className="mx-auto w-full max-w-3xl space-y-4 px-4 py-10">
+        <Skeleton className="h-8 w-1/2" />
+        <Skeleton className="aspect-video w-full rounded-2xl" />
+      </div>,
+    );
+  }
+  // In linear courses the backend refuses lessons the student hasn't reached (403).
+  if (lesson.isError) {
+    return frame(
+      lesson.error instanceof ApiError && lesson.error.status === 403 ? (
+        <LockedLesson lessonRef={ref} track={track} />
+      ) : (
+        <Notice title="We couldn’t open this lesson" lessonRef={ref}>
+          {lesson.error.message}
+        </Notice>
+      ),
+    );
+  }
+  if (!consent.data?.signed) return frame(<ConsentGate courseId={ref.courseId} versionId={ref.versionId} />);
+
+  const item = lesson.data;
+  if (!VIEWABLE.has(item.type)) {
+    return frame(
+      <Notice title={`${itemTypeMeta(item.type).label} lessons aren’t available here yet`} lessonRef={ref}>
+        {track === 'blue'
+          ? 'The blue track is for watching and reading. Assessments count only on the green track.'
+          : 'This version of the app can open videos and readings so far.'}
+      </Notice>,
+    );
+  }
+
+  if (track === 'blue') return <BlueLesson key={ref.itemId} lessonRef={ref} item={item} progress={progress} />;
+
+  // Green: never run a proctored lesson without its proctoring (engine is ported next).
+  if (isProctored(item.proctoringDetectors)) {
+    return frame(
+      <Notice title="This lesson is proctored" icon={<ShieldAlertIcon className="size-6" aria-hidden />} lessonRef={ref}>
+        Proctored lessons need the camera-based integrity checks, which aren’t available in this version of the app yet.
+        You can still study it on the blue track.
+      </Notice>,
+    );
+  }
+  return <GreenGate key={ref.itemId} lessonRef={ref} item={item} progress={progress} />;
 }
 
-function ActiveLesson({ lessonRef: ref, item, progress }: { lessonRef: LessonRef; item: LessonItem; progress: number }) {
+/**
+ * Green track: one lesson at a time, in order. Enforced here too, so it holds
+ * even in courses whose backend linear-progression setting is off.
+ */
+function GreenGate({ lessonRef: ref, item, progress }: { lessonRef: LessonRef; item: LessonItem; progress: number }) {
+  const path = useCurrentPath(ref.courseId, ref.versionId);
+  if (path.isPending) return <LessonFrame lessonRef={ref} track="green" title={item.name} progress={progress}><Skeleton className="mx-auto mt-10 h-64 w-full max-w-3xl" /></LessonFrame>;
+  const isCurrent = path.data?.item?.id === ref.itemId;
+  if (!item.isAlreadyWatched && path.data?.item && !isCurrent) {
+    return (
+      <LessonFrame lessonRef={ref} track="green" title={item.name} progress={progress}>
+        <LockedLesson lessonRef={ref} track="green" />
+      </LessonFrame>
+    );
+  }
+  return <GreenLesson lessonRef={ref} item={item} progress={progress} />;
+}
+
+function GreenLesson({ lessonRef: ref, item, progress }: { lessonRef: LessonRef; item: LessonItem; progress: number }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const settings = useCourseSettings(ref.courseId, ref.versionId);
@@ -88,7 +136,7 @@ function ActiveLesson({ lessonRef: ref, item, progress }: { lessonRef: LessonRef
   const [finishing, setFinishing] = useState(false);
   const alreadyDone = Boolean(item.isAlreadyWatched);
 
-  // Open a watch-time record for items the student hasn't completed yet.
+  // Open a watch-time record for items not completed yet.
   useEffect(() => {
     if (alreadyDone) return;
     let cancelled = false;
@@ -133,6 +181,7 @@ function ActiveLesson({ lessonRef: ref, item, progress }: { lessonRef: LessonRef
         await navigate({
           to: '/learn/$courseId/$versionId/$moduleId/$sectionId/$itemId',
           params: { courseId: ref.courseId, versionId: ref.versionId, moduleId: path.module.id, sectionId: path.section.id, itemId: next.id },
+          search: { track: 'green' },
         });
       } else {
         if (!next) toast.success('You’ve finished every lesson in this course.');
@@ -147,20 +196,19 @@ function ActiveLesson({ lessonRef: ref, item, progress }: { lessonRef: LessonRef
 
   if (startError && OUT_OF_ORDER.test(startError)) {
     return (
-      <LessonFrame lessonRef={ref} title={item.name} progress={progress}>
-        <LockedLesson lessonRef={ref} />
+      <LessonFrame lessonRef={ref} track="green" title={item.name} progress={progress}>
+        <LockedLesson lessonRef={ref} track="green" />
       </LessonFrame>
     );
   }
 
-  const seekForward = settings.data?.settings.seekForwardEnabled ?? false;
-  const videoId = item.type === 'VIDEO' ? youtubeId(item.details.URL) : null;
-
   return (
     <LessonFrame
       lessonRef={ref}
+      track="green"
       title={item.name}
       progress={progress}
+      footerTone={alreadyDone || (ready && item.type === 'VIDEO') ? 'success' : 'neutral'}
       footer={
         <>
           <p className="text-sm text-muted-foreground" aria-live="polite">
@@ -180,47 +228,141 @@ function ActiveLesson({ lessonRef: ref, item, progress }: { lessonRef: LessonRef
           </Button>
         </>
       }
-      footerTone={alreadyDone || (ready && item.type === 'VIDEO') ? 'success' : 'neutral'}
     >
-      <article className="mx-auto w-full max-w-3xl px-4 py-8 sm:py-10">
-        <p className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">{itemTypeMeta(item.type).label}</p>
-        <h1 className="mt-1 font-aleo text-2xl tracking-tight sm:text-3xl">{item.name}</h1>
-        {item.description && item.description !== item.name && <p className="mt-2 text-muted-foreground">{item.description}</p>}
-
-        <div className="mt-6">
-          {item.type === 'VIDEO' &&
-            (videoId ? (
-              <YouTubePlayer
-                videoId={videoId}
-                start={toSeconds(item.details.startTime)}
-                end={toSeconds(item.details.endTime)}
-                allowSeekForward={seekForward || alreadyDone}
-                onPlayingChange={setPlaying}
-                onEnded={() => setVideoEnded(true)}
-              />
-            ) : (
-              <p className="rounded-2xl border border-border p-6 text-sm text-muted-foreground">
-                This video is hosted on ViBe’s own storage, which this version of the app can’t play yet.
-              </p>
-            ))}
-
-          {item.type === 'BLOG' && (
-            <div className="prose-vibe">
-              <Markdown remarkPlugins={[remarkGfm]}>{item.details.content ?? ''}</Markdown>
-              {item.details.estimatedReadTimeInMinutes ? (
-                <p className="mt-8 text-xs text-muted-foreground">About {item.details.estimatedReadTimeInMinutes} min read</p>
-              ) : null}
-            </div>
-          )}
-        </div>
-      </article>
+      <LessonContent
+        item={item}
+        allowSeekForward={(settings.data?.settings.seekForwardEnabled ?? false) || alreadyDone}
+        onPlayingChange={setPlaying}
+        onEnded={() => setVideoEnded(true)}
+      />
     </LessonFrame>
   );
 }
 
-/** Uxcel lesson frame: close + course progress on top, sticky action bar below. */
+/**
+ * Blue track: study mode. Any lesson the backend will serve, free seeking,
+ * previous/next through the syllabus. Camera must be on; nothing is detected,
+ * reported or saved — no start/stop/heartbeat calls at all.
+ */
+function BlueLesson({ lessonRef: ref, item, progress }: { lessonRef: LessonRef; item: LessonItem; progress: number }) {
+  const camera = useCameraPresence();
+  const version = useCourseVersion(ref.versionId);
+  const { items } = useFlatSyllabus(version.data);
+  const index = items.findIndex((i) => i._id === ref.itemId);
+  const prev = index > 0 ? items[index - 1] : undefined;
+  const next = index >= 0 ? items[index + 1] : undefined;
+  const blocked = camera.state !== 'on';
+
+  const linkTo = (target: (typeof items)[number]) => ({
+    to: '/learn/$courseId/$versionId/$moduleId/$sectionId/$itemId' as const,
+    params: { courseId: ref.courseId, versionId: ref.versionId, moduleId: target.moduleId, sectionId: target.sectionId, itemId: target._id },
+    search: { track: 'blue' as const },
+  });
+
+  return (
+    <LessonFrame
+      lessonRef={ref}
+      track="blue"
+      title={item.name}
+      progress={progress}
+      footer={
+        <>
+          {prev ? (
+            <Link {...linkTo(prev)} className={buttonVariants({ variant: 'ghost' })}>
+              <ArrowLeftIcon data-icon="inline-start" /> Previous
+            </Link>
+          ) : (
+            <span />
+          )}
+          <p className="hidden text-xs text-muted-foreground sm:block">Study mode · not saved to your progress</p>
+          {next ? (
+            <Link {...linkTo(next)} className={buttonVariants({ size: 'lg' })}>
+              Next <ArrowRightIcon data-icon="inline-end" />
+            </Link>
+          ) : (
+            <Link to="/courses/$courseId/$versionId" params={{ courseId: ref.courseId, versionId: ref.versionId }} className={buttonVariants({ size: 'lg' })}>
+              Back to the course
+            </Link>
+          )}
+        </>
+      }
+    >
+      <div className={cn(blocked && 'pointer-events-none select-none blur-sm')} aria-hidden={blocked}>
+        <LessonContent item={item} allowSeekForward paused={blocked} />
+      </div>
+      <CameraBubble stream={camera.stream} />
+      <CameraRequired state={camera.state} onRetry={camera.retry} />
+    </LessonFrame>
+  );
+}
+
+function LessonContent({
+  item,
+  allowSeekForward,
+  paused,
+  onPlayingChange,
+  onEnded,
+}: {
+  item: LessonItem;
+  allowSeekForward: boolean;
+  paused?: boolean;
+  onPlayingChange?: (playing: boolean) => void;
+  onEnded?: () => void;
+}) {
+  const videoId = item.type === 'VIDEO' ? youtubeId(item.details.URL) : null;
+  return (
+    <article className="mx-auto w-full max-w-3xl px-4 py-8 sm:py-10">
+      <p className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">{itemTypeMeta(item.type).label}</p>
+      <h1 className="mt-1 font-aleo text-2xl tracking-tight sm:text-3xl">{item.name}</h1>
+      {item.description && item.description !== item.name && <p className="mt-2 text-muted-foreground">{item.description}</p>}
+      <div className="mt-6">
+        {item.type === 'VIDEO' &&
+          (videoId ? (
+            <YouTubePlayer
+              videoId={videoId}
+              start={toSeconds(item.details.startTime)}
+              end={toSeconds(item.details.endTime)}
+              allowSeekForward={allowSeekForward}
+              paused={paused}
+              onPlayingChange={onPlayingChange}
+              onEnded={onEnded}
+            />
+          ) : (
+            <p className="rounded-2xl border border-border p-6 text-sm text-muted-foreground">
+              This video is hosted on ViBe’s own storage, which this version of the app can’t play yet.
+            </p>
+          ))}
+        {item.type === 'BLOG' && (
+          <div className="prose-vibe">
+            <Markdown remarkPlugins={[remarkGfm]}>{item.details.content ?? ''}</Markdown>
+            {item.details.estimatedReadTimeInMinutes ? (
+              <p className="mt-8 text-xs text-muted-foreground">About {item.details.estimatedReadTimeInMinutes} min read</p>
+            ) : null}
+          </div>
+        )}
+      </div>
+    </article>
+  );
+}
+
+const TRACK_STYLE: Record<Track, string> = {
+  blue: 'bg-sky-100 text-sky-800 ring-sky-600/20 dark:bg-sky-500/15 dark:text-sky-300',
+  green: 'bg-emerald-100 text-emerald-800 ring-emerald-600/20 dark:bg-emerald-500/15 dark:text-emerald-300',
+};
+
+export function TrackBadge({ track, className }: { track: Track; className?: string }) {
+  return (
+    <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1', TRACK_STYLE[track], className)}>
+      <span className={cn('size-1.5 rounded-full', track === 'blue' ? 'bg-sky-500' : 'bg-emerald-500')} aria-hidden />
+      {TRACKS[track].label}
+    </span>
+  );
+}
+
+/** Uxcel lesson frame: close, course progress and track on top; sticky action bar below. */
 function LessonFrame({
   lessonRef: ref,
+  track,
   title,
   progress,
   children,
@@ -228,16 +370,18 @@ function LessonFrame({
   footerTone = 'neutral',
 }: {
   lessonRef: LessonRef;
+  track: Track;
   title?: string;
   progress: number;
   children: ReactNode;
   footer?: ReactNode;
   footerTone?: 'neutral' | 'success';
 }) {
+  const other: Track = track === 'blue' ? 'green' : 'blue';
   return (
     <div className="flex min-h-dvh flex-col bg-background">
-      <header className="sticky top-0 z-30 border-b border-border/60 bg-background/90 backdrop-blur-md">
-        <div className="mx-auto flex max-w-5xl items-center gap-4 px-4 py-3">
+      <header className={cn('sticky top-0 z-30 border-b bg-background/90 backdrop-blur-md', track === 'blue' ? 'border-sky-500/30' : 'border-emerald-500/30')}>
+        <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3">
           <Link
             to="/courses/$courseId/$versionId"
             params={{ courseId: ref.courseId, versionId: ref.versionId }}
@@ -246,8 +390,17 @@ function LessonFrame({
           >
             <XIcon className="size-5" />
           </Link>
-          <ProgressBar value={progress} className="h-2 flex-1" label="Course progress" />
-          <span className="hidden max-w-60 truncate text-sm text-muted-foreground sm:inline">{title}</span>
+          <ProgressBar value={progress} className="h-2 flex-1" label="Certified progress (green track)" />
+          <span className="hidden max-w-52 truncate text-sm text-muted-foreground md:inline">{title}</span>
+          <TrackBadge track={track} />
+          <Link
+            to="/learn/$courseId/$versionId/$moduleId/$sectionId/$itemId"
+            params={ref}
+            search={{ track: other }}
+            className="hidden text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline sm:inline"
+          >
+            Switch to {TRACKS[other].short.toLowerCase()}
+          </Link>
         </div>
       </header>
       <main id="main" className="flex flex-1 flex-col pb-24">
@@ -267,7 +420,7 @@ function LessonFrame({
   );
 }
 
-function LockedLesson({ lessonRef: ref }: { lessonRef: LessonRef }) {
+function LockedLesson({ lessonRef: ref, track }: { lessonRef: LessonRef; track: Track }) {
   const path = useCurrentPath(ref.courseId, ref.versionId);
   const next = path.data;
   return (
@@ -275,12 +428,17 @@ function LockedLesson({ lessonRef: ref }: { lessonRef: LessonRef }) {
       <span className="mb-4 grid size-12 place-items-center rounded-2xl bg-primary/15 text-primary">
         <LockIcon className="size-6" aria-hidden />
       </span>
-      <h1 className="font-aleo text-2xl tracking-tight">Finish the earlier lessons first</h1>
-      <p className="mt-2 text-sm text-muted-foreground">This course unlocks lessons in order.</p>
+      <h1 className="font-aleo text-2xl tracking-tight">{track === 'blue' ? 'Not unlocked yet' : 'Finish the earlier lessons first'}</h1>
+      <p className="mt-2 text-sm text-muted-foreground">
+        {track === 'blue'
+          ? 'This course unlocks lessons as you complete them on the green track. Lessons you’ve already reached are open for study.'
+          : 'The green track goes one lesson at a time, in order.'}
+      </p>
       {next?.item && next.module && next.section ? (
         <Link
           to="/learn/$courseId/$versionId/$moduleId/$sectionId/$itemId"
           params={{ courseId: ref.courseId, versionId: ref.versionId, moduleId: next.module.id, sectionId: next.section.id, itemId: next.item.id }}
+          search={{ track: 'green' }}
           className={cn(buttonVariants(), 'mt-6')}
         >
           Go to your next lesson: {next.item.name}
@@ -294,7 +452,7 @@ function LockedLesson({ lessonRef: ref }: { lessonRef: LessonRef }) {
   );
 }
 
-function Notice({ title, icon, children, ref_ }: { title: string; icon?: ReactNode; children: ReactNode; ref_: LessonRef }) {
+function Notice({ title, icon, children, lessonRef: ref }: { title: string; icon?: ReactNode; children: ReactNode; lessonRef: LessonRef }) {
   return (
     <div className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center px-4 py-16 text-center">
       {icon && <span className="mb-4 grid size-12 place-items-center rounded-2xl bg-primary/15 text-primary">{icon}</span>}
@@ -302,7 +460,7 @@ function Notice({ title, icon, children, ref_ }: { title: string; icon?: ReactNo
       <p className="mt-2 text-sm text-muted-foreground">{children}</p>
       <Link
         to="/courses/$courseId/$versionId"
-        params={{ courseId: ref_.courseId, versionId: ref_.versionId }}
+        params={{ courseId: ref.courseId, versionId: ref.versionId }}
         className={cn(buttonVariants({ variant: 'outline' }), 'mt-6')}
       >
         Back to the course

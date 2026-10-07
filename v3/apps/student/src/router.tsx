@@ -17,6 +17,7 @@ import { CoursePage } from '@/features/courses/course-page';
 import { CoursesPage } from '@/features/courses/courses-page';
 import { HomePage } from '@/features/home/home-page';
 import { LessonPage } from '@/features/learn/lesson-page';
+import { parseTrack, readTrack } from '@/features/learn/tracks';
 import { LandingPage } from '@/features/landing/landing-page';
 import { OnboardingPage } from '@/features/onboarding/onboarding-page';
 import { readOnboarding } from '@/features/onboarding/onboarding-state';
@@ -85,10 +86,12 @@ const appRoute = createRoute({
 const learnRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/learn/$courseId/$versionId/$moduleId/$sectionId/$itemId',
+  validateSearch: (search: Record<string, unknown>): { track?: 'blue' | 'green' } => ({ track: parseTrack(search.track) }),
   beforeLoad: ({ location }) => requireOnboardedUser(location),
   component: function LearnRoute() {
     const params = learnRoute.useParams();
-    return <LessonPage key={params.itemId} {...params} />;
+    const { track } = learnRoute.useSearch();
+    return <LessonPage key={`${params.itemId}:${track}`} {...params} track={track ?? readTrack(params.versionId)} />;
   },
 });
 

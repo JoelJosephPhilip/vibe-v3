@@ -117,6 +117,7 @@ function ResumeCard({ enrollment: e }: { enrollment: EnrollmentSummary }) {
                       sectionId: path.data.section.id,
                       itemId: path.data.item.id,
                     },
+                    search: { track: 'green' as const },
                   }
                 : { to: '/courses/$courseId/$versionId' as const, params: { courseId: e.courseId, versionId: e.courseVersionId } })}
               className={cn(buttonVariants({ size: 'lg' }), 'mt-4 w-full')}

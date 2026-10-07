@@ -53,7 +53,10 @@ export function YouTubePlayer({
   allowSeekForward,
   onPlayingChange,
   onEnded,
+  paused = false,
 }: {
+  /** Forces the video to pause (e.g. while the camera is off on the blue track). */
+  paused?: boolean;
   videoId: string;
   start: number;
   end: number;
@@ -62,6 +65,9 @@ export function YouTubePlayer({
   onEnded?: () => void;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
+  const playerRef = useRef<YTPlayer | null>(null);
+  const pausedRef = useRef(paused);
+  pausedRef.current = paused;
   const callbacks = useRef({ onPlayingChange, onEnded });
   callbacks.current = { onPlayingChange, onEnded };
 
@@ -80,11 +86,13 @@ export function YouTubePlayer({
         playerVars: { start, ...(end > start ? { end } : {}), rel: 0, modestbranding: 1, playsinline: 1 },
         events: {
           onStateChange: (e) => {
+            if (e.data === YT.PlayerState.PLAYING && pausedRef.current) player?.pauseVideo();
             callbacks.current.onPlayingChange?.(e.data === YT.PlayerState.PLAYING);
             if (e.data === YT.PlayerState.ENDED) callbacks.current.onEnded?.();
           },
         },
       });
+      playerRef.current = player;
       poll = window.setInterval(() => {
         if (!player) return;
         const t = player.getCurrentTime?.() ?? 0;
@@ -104,8 +112,13 @@ export function YouTubePlayer({
       cancelled = true;
       window.clearInterval(poll);
       player?.destroy();
+      playerRef.current = null;
     };
   }, [videoId, start, end, allowSeekForward]);
+
+  useEffect(() => {
+    if (paused) playerRef.current?.pauseVideo?.();
+  }, [paused]);
 
   return (
     <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-black">

@@ -45,12 +45,20 @@ describe('lesson player', () => {
   });
 
   it('starts a reading, then on Continue stops it and opens the next lesson the backend points to', async () => {
-    withGet({
-      [CONSENT]: { signed: true },
-      '/api/users/progress/courses/{courseId}/versions/{versionId}/current-path': {
-        ...path,
-        item: { id: 'next-item', name: 'Arrays in practice', type: 'VIDEO' },
-      },
+    // Like the backend: this lesson is current until it is stopped, then the next one is.
+    let stopped = false;
+    const post = api.POST.getMockImplementation()!;
+    api.POST.mockImplementation(async (p: string, ...rest: unknown[]) => {
+      if (p === STOP) stopped = true;
+      return post(p, ...rest);
+    });
+    const get = api.GET.getMockImplementation()!;
+    api.GET.mockImplementation(async (p: string, ...rest: unknown[]) => {
+      if (p === CONSENT) return ok({ signed: true });
+      if (p === '/api/users/progress/courses/{courseId}/versions/{versionId}/current-path') {
+        return ok(stopped ? { ...path, item: { id: 'next-item', name: 'Arrays in practice', type: 'VIDEO' } } : path);
+      }
+      return get(p, ...rest);
     });
     const user = userEvent.setup();
     const { router } = renderApp(lessonUrl);
