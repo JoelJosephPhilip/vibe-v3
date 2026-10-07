@@ -18,11 +18,14 @@ import ethics from './fixtures/ethics.json';
 import face from './fixtures/face.json';
 import itemBlog from './fixtures/item-blog.json';
 import itemVideo from './fixtures/item-video.json';
+import itemQuiz from './fixtures/item-quiz.json';
+import quizAttempt from './fixtures/quiz-attempt.json';
+import quizSubmit from './fixtures/quiz-submit.json';
 import modulesProgress from './fixtures/modules-progress.json';
 import percentage from './fixtures/percentage.json';
 import sectionItems from './fixtures/section-items.json';
 
-export const fixtures = { courseSettings, courseVersion, currentPath, enrollments, ethics, face, itemBlog, itemVideo, modulesProgress, percentage, sectionItems };
+export const fixtures = { courseSettings, courseVersion, currentPath, enrollments, ethics, face, itemBlog, itemQuiz, itemVideo, modulesProgress, percentage, quizAttempt, quizSubmit, sectionItems };
 
 type FakeUser = { uid: string; email: string; displayName: string | null; providerData: { providerId: string }[]; getIdToken: () => Promise<string>; reload: () => Promise<void> };
 
@@ -112,6 +115,8 @@ function respond(path: string) {
 /** Writes: start returns a watch-time id like the backend; everything else succeeds empty. */
 function respondPost(path: string) {
   if (path === '/api/users/progress/courses/{courseId}/versions/{versionId}/start') return ok({ watchItemId: 'watch-1' }, 201);
+  if (path === '/api/quizzes/{quizId}/attempt') return ok(fixtures.quizAttempt);
+  if (path === '/api/quizzes/{quizId}/attempt/{attemptId}/submit') return ok(fixtures.quizSubmit);
   return ok({});
 }
 

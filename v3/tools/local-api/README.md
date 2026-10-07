@@ -31,6 +31,7 @@ Create `~/.config/vibe-v3/` (chmod 700) with two private files (chmod 600):
 ```sh
 tools/local-api/start.sh          # emulator + backend; Ctrl-C stops both (emulator accounts persist in tools/local-api/.emulator-data)
 node tools/local-api/seed.mjs     # sample instructor/student + one small course (idempotent)
+node tools/local-api/seed-quiz.mjs # adds a 5-question checkpoint quiz after the first video (idempotent)
 pnpm nx dev student               # http://localhost:4300 — proxies /api and the emulator
 ```
 
@@ -55,6 +56,13 @@ regenerates `packages/api/src/schema.ts`.
 - The spec has 35 dangling `$ref`s and one duplicated operationId;
   `tools/openapi/fetch-spec.mjs` patches those in the generated copy only.
 - Blog items need `points` as a decimal *string* and no `tags` (`@IsEmpty`).
+- Quiz data: a question bank's `points` overwrite every question added to it
+  (even when the bank's points are unset → questions score 0), so banks must be
+  created with `points`. NUMERIC questions' `lowerLimit`/`upperLimit` are
+  tolerances around `value`, not absolute bounds.
+- Quiz attempts/results serialise ObjectIds as raw BSON buffers
+  (`{buffer:{data:[…]}}`); the app converts them (`toId`). The per-user quiz
+  metrics endpoint (remaining attempts) is instructor-only.
 
 ## Backend follow-ups (not done — backend changes are out of scope for now)
 

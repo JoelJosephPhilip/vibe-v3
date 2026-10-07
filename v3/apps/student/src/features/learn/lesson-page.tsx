@@ -36,6 +36,8 @@ import {
   type LessonRef,
 } from './queries';
 import { TRACKS, useCourseTrack, useFlatSyllabus, type Track } from './tracks';
+import { QuizRunner } from './quiz';
+import { useAfterQuizSubmit } from './quiz-api';
 import { YouTubePlayer } from './youtube-player';
 
 const HEARTBEAT_MS = 30_000;
@@ -82,7 +84,8 @@ export function LessonPage({ track, ...ref }: LessonProps) {
   if (!consent.data?.signed) return frame(<ConsentGate courseId={ref.courseId} versionId={ref.versionId} />);
 
   const item = lesson.data;
-  if (!VIEWABLE.has(item.type)) {
+  const greenQuiz = track === 'green' && item.type === 'QUIZ';
+  if (!VIEWABLE.has(item.type) && !greenQuiz) {
     return frame(
       <Notice title={`${itemTypeMeta(item.type).label} lessons aren’t available here yet`} lessonRef={ref}>
         {track === 'blue'
@@ -121,7 +124,63 @@ function GreenGate({ lessonRef: ref, item, progress }: { lessonRef: LessonRef; i
       </LessonFrame>
     );
   }
+  if (item.type === 'QUIZ') return <GreenQuiz lessonRef={ref} item={item} progress={progress} />;
   return <GreenLesson lessonRef={ref} item={item} progress={progress} />;
+}
+
+/** Opens the next lesson the backend's progress points to (or the course page when done). */
+function useGoToNext(ref: LessonRef) {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  return useCallback(async () => {
+    const path = unwrap(
+      await api.GET('/api/users/progress/courses/{courseId}/versions/{versionId}/current-path', {
+        params: { path: { courseId: ref.courseId, versionId: ref.versionId } },
+      }),
+    ) as unknown as CurrentPath;
+    queryClient.setQueryData(courseKeys.currentPath(ref.courseId, ref.versionId), path);
+    const next = path?.item;
+    if (next && next.id !== ref.itemId && path.module && path.section) {
+      await navigate({
+        to: '/learn/$courseId/$versionId/$moduleId/$sectionId/$itemId',
+        params: { courseId: ref.courseId, versionId: ref.versionId, moduleId: path.module.id, sectionId: path.section.id, itemId: next.id },
+        search: { track: 'green' },
+      });
+    } else {
+      if (!next) toast.success('You’ve finished every lesson in this course.');
+      await navigate({ to: '/courses/$courseId/$versionId', params: { courseId: ref.courseId, versionId: ref.versionId } });
+    }
+  }, [navigate, queryClient, ref]);
+}
+
+/** Green-track quiz: the attempt's submission grades it and advances progress when passed. */
+function GreenQuiz({ lessonRef: ref, item, progress }: { lessonRef: LessonRef; item: LessonItem; progress: number }) {
+  const navigate = useNavigate();
+  const goToNext = useGoToNext(ref);
+  const refresh = useAfterQuizSubmit();
+  const watchItem = useRef<Promise<string> | null>(null);
+
+  // Already-passed quizzes can be retaken for practice without touching progress.
+  const ensureWatchItem = useCallback(async () => {
+    if (item.isAlreadyWatched) return undefined;
+    watchItem.current ??= startItem(ref);
+    return watchItem.current;
+  }, [item.isAlreadyWatched, ref]);
+
+  return (
+    <LessonFrame lessonRef={ref} track="green" title={item.name} progress={progress}>
+      <QuizRunner
+        lessonRef={ref}
+        item={item}
+        ensureWatchItem={ensureWatchItem}
+        onPassed={async () => {
+          await refresh();
+          await goToNext();
+        }}
+        onExit={() => navigate({ to: '/courses/$courseId/$versionId', params: { courseId: ref.courseId, versionId: ref.versionId } })}
+      />
+    </LessonFrame>
+  );
 }
 
 function GreenLesson({ lessonRef: ref, item, progress }: { lessonRef: LessonRef; item: LessonItem; progress: number }) {
