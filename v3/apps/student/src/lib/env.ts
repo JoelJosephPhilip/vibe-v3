@@ -3,14 +3,16 @@
  * Local development defaults to the local backend + Firebase Auth emulator.
  */
 const e = import.meta.env;
+const projectId = (e.VITE_FIREBASE_PROJECT_ID as string | undefined) ?? 'demo-vibe';
 
 export const env = {
   /** Backend origin. Empty = same origin (the Vite dev server proxies /api to the local backend). */
   apiBaseUrl: (e.VITE_API_BASE_URL as string | undefined) ?? '',
   firebase: {
     apiKey: (e.VITE_FIREBASE_API_KEY as string | undefined) ?? 'demo-api-key',
-    authDomain: e.VITE_FIREBASE_AUTH_DOMAIN as string | undefined,
-    projectId: (e.VITE_FIREBASE_PROJECT_ID as string | undefined) ?? 'demo-vibe',
+    // Required for Google pop-up sign-in (auth/auth-domain-config-required otherwise).
+    authDomain: (e.VITE_FIREBASE_AUTH_DOMAIN as string | undefined) || `${projectId}.firebaseapp.com`,
+    projectId,
     appId: e.VITE_FIREBASE_APP_ID as string | undefined,
   },
   /**

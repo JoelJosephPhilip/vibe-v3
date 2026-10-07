@@ -21,6 +21,10 @@ export function describeAuthError(error: unknown): string {
       return 'Your browser blocked the Google sign-in window. Allow pop-ups and try again.';
     case 'auth/account-exists-with-different-credential':
       return 'An account already exists with this email using a different sign-in method.';
+    case 'auth/auth-domain-config-required':
+    case 'auth/operation-not-allowed':
+    case 'auth/unauthorized-domain':
+      return 'Google sign-in isn’t available on this site right now. Please use your email and password.';
     default:
       return (error as Error | null)?.message || 'Something went wrong. Please try again.';
   }
