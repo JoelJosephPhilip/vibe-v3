@@ -10,16 +10,19 @@
  */
 import { vi, type Mock } from 'vitest';
 
+import courseSettings from './fixtures/course-settings.json';
 import courseVersion from './fixtures/version.json';
 import currentPath from './fixtures/current-path.json';
 import enrollments from './fixtures/enrollments.json';
 import ethics from './fixtures/ethics.json';
 import face from './fixtures/face.json';
+import itemBlog from './fixtures/item-blog.json';
+import itemVideo from './fixtures/item-video.json';
 import modulesProgress from './fixtures/modules-progress.json';
 import percentage from './fixtures/percentage.json';
 import sectionItems from './fixtures/section-items.json';
 
-export const fixtures = { courseVersion, currentPath, enrollments, ethics, face, modulesProgress, percentage, sectionItems };
+export const fixtures = { courseSettings, courseVersion, currentPath, enrollments, ethics, face, itemBlog, itemVideo, modulesProgress, percentage, sectionItems };
 
 type FakeUser = { uid: string; email: string; displayName: string | null; providerData: { providerId: string }[]; getIdToken: () => Promise<string>; reload: () => Promise<void> };
 
@@ -97,25 +100,36 @@ function respond(path: string) {
       return ok(fixtures.ethics);
     case '/api/users/me/face-reference':
       return ok(fixtures.face);
+    case '/api/courses/{courseId}/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/item/{itemId}':
+      return ok(fixtures.itemBlog);
+    case '/api/setting/course-setting/{courseId}/{versionId}':
+      return ok(fixtures.courseSettings);
     default:
       throw new Error(`No test fixture for GET ${path}`);
   }
 }
 
+/** Writes: start returns a watch-time id like the backend; everything else succeeds empty. */
+function respondPost(path: string) {
+  if (path === '/api/users/progress/courses/{courseId}/versions/{versionId}/start') return ok({ watchItemId: 'watch-1' }, 201);
+  return ok({});
+}
+
 export const api: { GET: AnyMock; POST: AnyMock; PATCH: AnyMock } = {
   GET: vi.fn(async (path: string) => respond(path)),
-  POST: vi.fn(async () => ok({})),
+  POST: vi.fn(async (path: string) => respondPost(path)),
   PATCH: vi.fn(async () => ok({})),
 };
 
 export const apiModule = { api };
+export { ok };
 
 export function resetSession() {
   listeners.clear();
   fakeAuth.currentUser = null;
   vi.clearAllMocks();
   api.GET.mockImplementation(async (path: string) => respond(path));
-  api.POST.mockImplementation(async () => ok({}));
+  api.POST.mockImplementation(async (path: string) => respondPost(path));
   api.PATCH.mockImplementation(async () => ok({}));
 }
 

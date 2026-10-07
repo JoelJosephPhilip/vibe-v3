@@ -20,9 +20,12 @@ describe('home', () => {
     renderApp('/home');
     const card = (await screen.findByRole('heading', { name: course.course.name })).closest('div')!.parentElement!;
     expect(await within(card).findByText(fixtures.currentPath.item.name)).toBeInTheDocument();
-    expect(within(card).getByRole('link', { name: /start course/i })).toHaveAttribute(
-      'href',
-      `/courses/${course.courseId}/${course.courseVersionId}`,
+    const p = fixtures.currentPath;
+    await waitFor(() =>
+      expect(within(card).getByRole('link', { name: /start course/i })).toHaveAttribute(
+        'href',
+        `/learn/${course.courseId}/${course.courseVersionId}/${p.module.id}/${p.section.id}/${p.item.id}`,
+      ),
     );
   });
 

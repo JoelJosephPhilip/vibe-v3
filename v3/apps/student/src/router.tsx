@@ -16,6 +16,7 @@ import { SignupPage } from '@/features/auth/signup-page';
 import { CoursePage } from '@/features/courses/course-page';
 import { CoursesPage } from '@/features/courses/courses-page';
 import { HomePage } from '@/features/home/home-page';
+import { LessonPage } from '@/features/learn/lesson-page';
 import { LandingPage } from '@/features/landing/landing-page';
 import { OnboardingPage } from '@/features/onboarding/onboarding-page';
 import { readOnboarding } from '@/features/onboarding/onboarding-state';
@@ -67,15 +68,28 @@ const onboardingRoute = createRoute({
   component: OnboardingPage,
 });
 
+async function requireOnboardedUser(location: { href: string }) {
+  const user = await requireUser(location);
+  if (!readOnboarding(user.uid).completedAt) throw redirect({ to: '/onboarding' });
+}
+
 /** Signed-in area. First-time users see onboarding once before anything else. */
 const appRoute = createRoute({
   getParentRoute: () => rootRoute,
   id: 'app',
-  beforeLoad: async ({ location }) => {
-    const user = await requireUser(location);
-    if (!readOnboarding(user.uid).completedAt) throw redirect({ to: '/onboarding' });
-  },
+  beforeLoad: ({ location }) => requireOnboardedUser(location),
   component: AppShell,
+});
+
+/** Full-screen lesson player (outside the app shell, like Uxcel's lesson view). */
+const learnRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/learn/$courseId/$versionId/$moduleId/$sectionId/$itemId',
+  beforeLoad: ({ location }) => requireOnboardedUser(location),
+  component: function LearnRoute() {
+    const params = learnRoute.useParams();
+    return <LessonPage key={params.itemId} {...params} />;
+  },
 });
 
 const homeRoute = createRoute({ getParentRoute: () => appRoute, path: '/home', component: HomePage });
@@ -96,6 +110,7 @@ const routeTree = rootRoute.addChildren([
   signupRoute,
   forgotRoute,
   onboardingRoute,
+  learnRoute,
   appRoute.addChildren([homeRoute, coursesRoute, courseRoute, profileRoute]),
 ]);
 

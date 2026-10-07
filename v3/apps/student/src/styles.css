@@ -203,3 +203,33 @@
     @apply bg-background text-foreground font-sans antialiased;
   }
 }
+
+/* Readable long-form lesson text (Markdown articles) */
+@layer components {
+  .prose-vibe {
+    @apply max-w-none text-base leading-7 text-foreground/90;
+  }
+  .prose-vibe > * + * {
+    @apply mt-4;
+  }
+  .prose-vibe h1,
+  .prose-vibe h2,
+  .prose-vibe h3 {
+    @apply mt-8 font-aleo tracking-tight text-foreground;
+  }
+  .prose-vibe h1 { @apply text-2xl; }
+  .prose-vibe h2 { @apply text-xl; }
+  .prose-vibe h3 { @apply text-lg; }
+  .prose-vibe a { @apply font-medium text-primary underline underline-offset-4; }
+  .prose-vibe ul { @apply list-disc pl-6; }
+  .prose-vibe ol { @apply list-decimal pl-6; }
+  .prose-vibe li + li { @apply mt-1; }
+  .prose-vibe blockquote { @apply border-l-4 border-primary/40 pl-4 italic text-muted-foreground; }
+  .prose-vibe code { @apply rounded bg-muted px-1.5 py-0.5 text-sm; }
+  .prose-vibe pre { @apply overflow-x-auto rounded-xl bg-muted p-4 text-sm; }
+  .prose-vibe pre code { @apply bg-transparent p-0; }
+  .prose-vibe table { @apply w-full border-collapse text-sm; }
+  .prose-vibe th,
+  .prose-vibe td { @apply border border-border px-3 py-2 text-left; }
+  .prose-vibe img { @apply rounded-xl; }
+}

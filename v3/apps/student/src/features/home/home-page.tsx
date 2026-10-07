@@ -107,8 +107,18 @@ function ResumeCard({ enrollment: e }: { enrollment: EnrollmentSummary }) {
             </div>
             <ProgressBar value={pct} label={`${e.course.name} progress`} />
             <Link
-              to="/courses/$courseId/$versionId"
-              params={{ courseId: e.courseId, versionId: e.courseVersionId }}
+              {...(path.data?.item && path.data.module && path.data.section
+                ? {
+                    to: '/learn/$courseId/$versionId/$moduleId/$sectionId/$itemId' as const,
+                    params: {
+                      courseId: e.courseId,
+                      versionId: e.courseVersionId,
+                      moduleId: path.data.module.id,
+                      sectionId: path.data.section.id,
+                      itemId: path.data.item.id,
+                    },
+                  }
+                : { to: '/courses/$courseId/$versionId' as const, params: { courseId: e.courseId, versionId: e.courseVersionId } })}
               className={cn(buttonVariants({ size: 'lg' }), 'mt-4 w-full')}
             >
               {pct > 0 ? 'Resume course' : 'Start course'}

@@ -82,10 +82,16 @@ export function CoursePage({ courseId, versionId }: { courseId: string; versionI
           ))}
         </ul>
 
-        {path.data?.item && (
-          <a href="#up-next" className="mt-6 inline-flex h-10 items-center gap-2 rounded-md bg-foreground px-4 text-sm font-medium text-background hover:bg-foreground/85">
+        {path.data?.item && path.data.module && path.data.section ? (
+          <Link
+            to="/learn/$courseId/$versionId/$moduleId/$sectionId/$itemId"
+            params={{ courseId, versionId, moduleId: path.data.module.id, sectionId: path.data.section.id, itemId: path.data.item.id }}
+            className="mt-6 inline-flex h-10 items-center gap-2 rounded-md bg-foreground px-4 text-sm font-medium text-background hover:bg-foreground/85"
+          >
             {pct > 0 ? 'Continue where you left off' : 'Start course'}
-          </a>
+          </Link>
+        ) : (
+          percentage.data?.completed && <p className="mt-6 text-sm font-medium text-emerald-700 dark:text-emerald-400">Course completed</p>
         )}
 
         <section aria-labelledby="syllabus-title" className="mt-10 border-t border-border pt-8">
@@ -101,6 +107,7 @@ export function CoursePage({ courseId, versionId }: { courseId: string; versionI
                 key={m.moduleId}
                 index={i}
                 module={m}
+                courseId={courseId}
                 versionId={versionId}
                 currentPath={path.data}
                 progress={moduleProgress.data?.find((p) => p.moduleId === m.moduleId)}
@@ -141,12 +148,14 @@ export function CoursePage({ courseId, versionId }: { courseId: string; versionI
 function ModuleBlock({
   index,
   module: m,
+  courseId,
   versionId,
   currentPath,
   progress,
 }: {
   index: number;
   module: CourseModule;
+  courseId: string;
   versionId: string;
   currentPath?: CurrentPath;
   progress?: { totalItems: number; completedItems: number };
@@ -172,6 +181,7 @@ function ModuleBlock({
         {sections.map((s) => (
           <SectionBlock
             key={s.sectionId}
+            courseId={courseId}
             versionId={versionId}
             moduleId={m.moduleId}
             sectionId={s.sectionId}
@@ -186,6 +196,7 @@ function ModuleBlock({
 }
 
 function SectionBlock({
+  courseId,
   versionId,
   moduleId,
   sectionId,
@@ -193,6 +204,7 @@ function SectionBlock({
   defaultOpen,
   currentItemId,
 }: {
+  courseId: string;
   versionId: string;
   moduleId: string;
   sectionId: string;
@@ -236,9 +248,11 @@ function SectionBlock({
                     Up next
                   </span>
                 )}
-                <div
+                <Link
+                  to="/learn/$courseId/$versionId/$moduleId/$sectionId/$itemId"
+                  params={{ courseId, versionId, moduleId, sectionId, itemId: item._id }}
                   className={cn(
-                    'flex items-center gap-3 rounded-lg border bg-card px-3 py-3',
+                    'flex items-center gap-3 rounded-lg border bg-card px-3 py-3 transition-colors hover:border-foreground/25',
                     isCurrent ? 'border-primary ring-2 ring-primary/30' : 'border-border',
                   )}
                 >
@@ -257,7 +271,7 @@ function SectionBlock({
                   ) : !isCurrent ? (
                     <CircleIcon className="size-5 text-muted-foreground/50" aria-label="Not started" />
                   ) : null}
-                </div>
+                </Link>
               </li>
             );
           })}
