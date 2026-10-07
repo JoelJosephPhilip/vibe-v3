@@ -17,7 +17,7 @@ grep -q '^DB_NAME=vibe_v3_local' "$CONFIG/atlas.env" || { echo "Refusing to star
 cleanup() { kill 0 2>/dev/null || true; }
 trap cleanup EXIT INT TERM
 
-(cd "$HERE" && npx --yes firebase-tools@latest emulators:start --only auth --project demo-vibe) &
+(cd "$HERE" && mkdir -p .emulator-data && npx --yes firebase-tools@latest emulators:start --only auth --project demo-vibe --import .emulator-data --export-on-exit) &
 
 if [[ ! -d "$BACKEND/node_modules" ]]; then
   (cd "$BACKEND/.." && pnpm install --frozen-lockfile --filter ./backend)

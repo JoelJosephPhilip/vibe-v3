@@ -29,7 +29,7 @@ Create `~/.config/vibe-v3/` (chmod 700) with two private files (chmod 600):
 ## Run
 
 ```sh
-tools/local-api/start.sh          # emulator + backend; Ctrl-C stops both
+tools/local-api/start.sh          # emulator + backend; Ctrl-C stops both (emulator accounts persist in tools/local-api/.emulator-data)
 node tools/local-api/seed.mjs     # sample instructor/student + one small course (idempotent)
 pnpm nx dev student               # http://localhost:4300 — proxies /api and the emulator
 ```

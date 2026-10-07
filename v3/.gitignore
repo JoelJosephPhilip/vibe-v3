@@ -71,3 +71,6 @@ test-results
 # Firebase emulator logs
 firebase-debug.log
 *-debug.log
+
+# Firebase Auth emulator accounts (local only)
+.emulator-data/
