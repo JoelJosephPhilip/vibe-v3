@@ -1,17 +1,18 @@
 import { Moon, Sun } from 'lucide-react';
-import { useTheme } from 'next-themes';
 
 import { cn } from '@/lib/utils';
 
-/** Light/dark switch. Light is the app default (see ThemeProvider in app.tsx). */
+import { useTheme } from './theme-provider';
+
+/** Light/dark switch. Light is the app default. */
 export function ThemeToggle({ className }: { className?: string }) {
-  const { resolvedTheme, setTheme } = useTheme();
-  const isDark = resolvedTheme === 'dark';
+  const { theme, toggleTheme } = useTheme();
+  const isDark = theme === 'dark';
 
   return (
     <button
       type="button"
-      onClick={() => setTheme(isDark ? 'light' : 'dark')}
+      onClick={toggleTheme}
       aria-label={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
       aria-pressed={isDark}
       className={cn(

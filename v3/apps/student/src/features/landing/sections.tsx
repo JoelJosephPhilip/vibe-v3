@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router';
 import {
   BarChart3Icon,
   BookmarkIcon,
@@ -11,6 +12,7 @@ import { motion } from 'motion/react';
 import type { ReactNode } from 'react';
 
 import OrbBackground from '@/components/orb-background';
+import { PartnerLogos } from '@/components/partner-logos';
 import {
   Accordion,
   AccordionItem,
@@ -68,6 +70,19 @@ function SectionHeading({
       </h2>
       {children && <p className="text-base text-muted-foreground md:text-lg">{children}</p>}
     </motion.div>
+  );
+}
+
+export function Partners() {
+  return (
+    <section aria-labelledby="partners-title" className="px-5 pt-14 md:pt-20">
+      <motion.div {...reveal} className="mx-auto flex max-w-5xl flex-col items-center gap-6">
+        <h2 id="partners-title" className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">
+          In association with
+        </h2>
+        <PartnerLogos />
+      </motion.div>
+    </section>
   );
 }
 
@@ -223,15 +238,14 @@ export function Footer() {
             Sign in to see your courses, or create an account to join one.
           </p>
           <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-            <a href={SIGNUP_HREF} className={cn(buttonVariants({ size: 'lg' }), 'w-full sm:w-auto')}>
+            <Link to={SIGNUP_HREF} className={cn(buttonVariants({ size: 'lg' }), 'w-full sm:w-auto')}>
               Get started
-            </a>
-            <a
-              href={LOGIN_HREF}
+            </Link>
+            <Link to={LOGIN_HREF}
               className={cn(buttonVariants({ variant: 'outline', size: 'lg' }), 'w-full sm:w-auto')}
             >
               Log in
-            </a>
+            </Link>
           </div>
         </motion.div>
 

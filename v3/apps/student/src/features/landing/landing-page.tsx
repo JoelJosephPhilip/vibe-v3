@@ -1,6 +1,6 @@
 import { Hero } from './hero';
 import { Navbar } from './navbar';
-import { Faq, Features, Footer, HowItWorks, Integrity } from './sections';
+import { Faq, Features, Footer, HowItWorks, Integrity, Partners } from './sections';
 
 export function LandingPage() {
   return (
@@ -14,6 +14,7 @@ export function LandingPage() {
       <Navbar />
       <main id="main" className="flex-1">
         <Hero />
+        <Partners />
         <HowItWorks />
         <Features />
         <Integrity />

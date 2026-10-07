@@ -1,10 +1,10 @@
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import App from '@/app/app';
+import { renderApp } from '@/test/render-app';
 
 describe('Theme', () => {
-  it('defaults to light, even when the system prefers dark', () => {
+  it('defaults to light, even when the system prefers dark', async () => {
     vi.mocked(window.matchMedia).mockImplementation(
       (query: string) =>
         ({
@@ -18,15 +18,16 @@ describe('Theme', () => {
           onchange: null,
         }) as MediaQueryList,
     );
-    render(<App />);
+    renderApp('/');
+    await screen.findAllByRole('heading', { level: 1 });
     expect(document.documentElement).toHaveClass('light');
     expect(document.documentElement).not.toHaveClass('dark');
   });
 
   it('switches to dark and back', async () => {
     const user = userEvent.setup();
-    render(<App />);
-    const [toggle] = screen.getAllByRole('button', { name: 'Switch to dark theme' });
+    renderApp('/');
+    const [toggle] = await screen.findAllByRole('button', { name: 'Switch to dark theme' });
 
     await user.click(toggle);
     expect(document.documentElement).toHaveClass('dark');

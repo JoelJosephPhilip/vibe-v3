@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router';
 import { ArrowRightIcon, CheckIcon, PlayIcon, ShieldCheckIcon } from 'lucide-react';
 import { motion } from 'motion/react';
 
@@ -52,10 +53,10 @@ export function Hero() {
               {...fadeUp(0.35)}
               className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row"
             >
-              <a href={SIGNUP_HREF} className={cn(buttonVariants({ size: 'lg' }), 'w-full sm:w-auto')}>
+              <Link to={SIGNUP_HREF} className={cn(buttonVariants({ size: 'lg' }), 'w-full sm:w-auto')}>
                 Start learning
                 <ArrowRightIcon data-icon="inline-end" />
-              </a>
+              </Link>
               <a
                 href="#how-it-works"
                 className={cn(buttonVariants({ variant: 'outline', size: 'lg' }), 'w-full sm:w-auto')}

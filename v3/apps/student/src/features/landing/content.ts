@@ -4,8 +4,8 @@
  * that way: no invented stats, testimonials, or partner logos.
  */
 
-export const LOGIN_HREF = '/login';
-export const SIGNUP_HREF = '/signup';
+export const LOGIN_HREF = '/login' as const;
+export const SIGNUP_HREF = '/signup' as const;
 export const GITHUB_HREF = 'https://github.com/vicharanashala/vibe';
 export const DOCS_HREF = 'https://vicharanashala.github.io/vibe/';
 export const CONTACT_EMAIL = 'dled@iitrpr.ac.in';

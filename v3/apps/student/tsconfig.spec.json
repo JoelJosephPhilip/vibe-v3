@@ -24,7 +24,8 @@
       "es2022",
       "dom",
       "dom.iterable"
-    ]
+    ],
+    "resolveJsonModule": true
   },
   "include": [
     "vite.config.ts",
@@ -40,7 +41,9 @@
     "src/**/*.test.jsx",
     "src/**/*.spec.jsx",
     "src/**/*.d.ts",
-    "src/test/**/*.ts"
+    "src/test/**/*.json",
+    "src/test/**/*.ts",
+    "src/test/**/*.tsx"
   ],
   "references": [
     {

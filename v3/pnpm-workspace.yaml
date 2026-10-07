@@ -5,3 +5,6 @@ allowBuilds:
   nx: true
   '@swc/core': true
   esbuild: true
+  # Firebase's optional postinstall scripts aren't needed for a browser bundle.
+  '@firebase/util': false
+  protobufjs: false

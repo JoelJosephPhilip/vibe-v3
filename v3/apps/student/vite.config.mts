@@ -9,6 +9,14 @@ export default defineConfig(() => ({
   server: {
     port: 4300,
     host: 'localhost',
+    // Same-origin access to the local backend and Firebase Auth emulator, so
+    // the app works through a single SSH tunnel / port (see .env.example).
+    proxy: {
+      '/api': 'http://localhost:4001',
+      '/identitytoolkit.googleapis.com': 'http://127.0.0.1:9099',
+      '/securetoken.googleapis.com': 'http://127.0.0.1:9099',
+      '/emulator': 'http://127.0.0.1:9099',
+    },
   },
   preview: {
     port: 4300,

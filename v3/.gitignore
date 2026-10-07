@@ -62,3 +62,12 @@ test-output
 test-output
 playwright-report
 test-results
+
+# Env files: local overrides stay private; examples are committed.
+.env
+.env.*
+!.env.example
+
+# Firebase emulator logs
+firebase-debug.log
+*-debug.log

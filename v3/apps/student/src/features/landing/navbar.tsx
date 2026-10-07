@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router';
 import { MenuIcon, XIcon } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useState } from 'react';
@@ -38,12 +39,12 @@ export function Navbar() {
 
           <div className="hidden items-center gap-2 md:flex">
             <ThemeToggle />
-            <a href={LOGIN_HREF} className={buttonVariants({ variant: 'ghost', size: 'sm' })}>
+            <Link to={LOGIN_HREF} className={buttonVariants({ variant: 'ghost', size: 'sm' })}>
               Log in
-            </a>
-            <a href={SIGNUP_HREF} className={buttonVariants({ size: 'sm' })}>
+            </Link>
+            <Link to={SIGNUP_HREF} className={buttonVariants({ size: 'sm' })}>
               Get started
-            </a>
+            </Link>
           </div>
 
           <div className="flex items-center gap-2 md:hidden">
@@ -85,15 +86,14 @@ export function Navbar() {
                 ))}
               </ul>
               <div className="flex flex-col gap-2 border-t border-border pt-3 pb-2">
-                <a
-                  href={LOGIN_HREF}
+                <Link to={LOGIN_HREF}
                   className={cn(buttonVariants({ variant: 'outline' }), 'w-full')}
                 >
                   Log in
-                </a>
-                <a href={SIGNUP_HREF} className={cn(buttonVariants(), 'w-full')}>
+                </Link>
+                <Link to={SIGNUP_HREF} className={cn(buttonVariants(), 'w-full')}>
                   Get started
-                </a>
+                </Link>
               </div>
             </motion.div>
           )}

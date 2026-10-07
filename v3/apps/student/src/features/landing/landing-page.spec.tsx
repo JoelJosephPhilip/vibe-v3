@@ -1,21 +1,21 @@
-import { render, screen, within } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import App from '@/app/app';
+import { renderApp } from '@/test/render-app';
 
 import { FAQS, LOGIN_HREF, NAV_LINKS, SIGNUP_HREF } from './content';
 
 describe('Landing page', () => {
-  it('renders the hero headline as the only h1', () => {
-    render(<App />);
-    const headings = screen.getAllByRole('heading', { level: 1 });
+  it('renders the hero headline as the only h1', async () => {
+    renderApp('/');
+    const headings = await screen.findAllByRole('heading', { level: 1 });
     expect(headings).toHaveLength(1);
     expect(headings[0]).toHaveTextContent('Learn it. Prove it. Then move on.');
   });
 
-  it('links every nav item to a section that exists on the page', () => {
-    const { container } = render(<App />);
-    const nav = screen.getByRole('navigation', { name: 'Main' });
+  it('links every nav item to a section that exists on the page', async () => {
+    const { container } = renderApp('/');
+    const nav = await screen.findByRole('navigation', { name: 'Main' });
     for (const link of NAV_LINKS) {
       const anchor = within(nav).getAllByRole('link', { name: link.label })[0];
       expect(anchor).toHaveAttribute('href', link.href);
@@ -23,9 +23,9 @@ describe('Landing page', () => {
     }
   });
 
-  it('points the calls to action at login and signup', () => {
-    render(<App />);
-    expect(screen.getByRole('link', { name: /start learning/i })).toHaveAttribute('href', SIGNUP_HREF);
+  it('points the calls to action at login and signup', async () => {
+    renderApp('/');
+    expect(await screen.findByRole('link', { name: /start learning/i })).toHaveAttribute('href', SIGNUP_HREF);
     for (const link of screen.getAllByRole('link', { name: /^log in$/i })) {
       expect(link).toHaveAttribute('href', LOGIN_HREF);
     }
@@ -33,9 +33,9 @@ describe('Landing page', () => {
 
   it('opens an FAQ answer when its question is clicked', async () => {
     const user = userEvent.setup();
-    render(<App />);
+    renderApp('/');
     const [first] = FAQS;
-    const trigger = screen.getByRole('button', { name: first.q });
+    const trigger = await screen.findByRole('button', { name: first.q });
     expect(trigger).toHaveAttribute('aria-expanded', 'false');
 
     await user.click(trigger);
@@ -50,13 +50,21 @@ describe('Landing page', () => {
 
   it('toggles the mobile menu', async () => {
     const user = userEvent.setup();
-    render(<App />);
-    const toggle = screen.getByRole('button', { name: 'Open menu' });
+    renderApp('/');
+    const toggle = await screen.findByRole('button', { name: 'Open menu' });
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
 
     await user.click(toggle);
 
     expect(screen.getByRole('button', { name: 'Close menu' })).toHaveAttribute('aria-expanded', 'true');
     expect(document.getElementById('mobile-menu')).toBeInTheDocument();
+  });
+
+  it('shows the three partner logos', async () => {
+    renderApp('/');
+    const list = await screen.findByRole('list', { name: 'Partners' });
+    for (const name of ['IIT Ropar', 'annam.ai', 'Vicharanashala Lab for Education Design']) {
+      expect(within(list).getByRole('img', { name })).toBeInTheDocument();
+    }
   });
 });
