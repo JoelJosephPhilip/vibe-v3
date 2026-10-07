@@ -57,7 +57,7 @@ export function HomePage() {
                     params={{ courseId: e.courseId, versionId: e.courseVersionId }}
                     className="block rounded-2xl border border-border bg-card p-4 transition-colors hover:border-foreground/20"
                   >
-                    <CourseCover name={e.course.name} className="h-28 w-full" />
+                    <CourseCover name={e.course.name} seed={e.courseId} className="h-28 w-full" />
                     <p className="mt-3 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">Course</p>
                     <p className="mt-1 line-clamp-2 font-medium">{e.course.name}</p>
                     <ProgressBar value={percentOf(e)} className="mt-3" label={`${e.course.name} progress`} />
@@ -87,7 +87,7 @@ function ResumeCard({ enrollment: e }: { enrollment: EnrollmentSummary }) {
       {/* Uxcel's stacked-card hint that there's more behind this one */}
       <div aria-hidden className="absolute inset-x-4 -bottom-2 h-full rounded-2xl border border-border bg-muted/60" />
       <div className="relative grid gap-5 rounded-2xl border border-border bg-card p-4 shadow-xs sm:grid-cols-[220px_1fr] sm:p-5">
-        <CourseCover name={e.course.name} className="aspect-[4/3] w-full sm:aspect-auto sm:h-full" />
+        <CourseCover name={e.course.name} seed={e.courseId} className="aspect-[4/3] w-full sm:aspect-auto sm:h-full" />
         <div className="flex min-w-0 flex-col">
           <p className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">Course</p>
           <h3 className="mt-1 font-aleo text-xl leading-snug">{e.course.name}</h3>

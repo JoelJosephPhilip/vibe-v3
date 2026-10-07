@@ -1,12 +1,13 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { ApiError, unwrap } from '@vibe/api';
-import { ArrowLeftIcon, ArrowRightIcon, CheckCircle2Icon, Loader2Icon, LockIcon, ShieldAlertIcon, XIcon } from 'lucide-react';
+import { ArrowLeftIcon, ArrowRightIcon, BadgeCheckIcon, CheckCircle2Icon, Loader2Icon, LockIcon, ShieldAlertIcon, XIcon } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { toast } from 'sonner';
 
+import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { itemTypeMeta, ProgressBar } from '@/features/courses/course-ui';
@@ -404,17 +405,18 @@ function LessonContent({
   );
 }
 
-const TRACK_STYLE: Record<Track, string> = {
-  blue: 'bg-sky-100 text-sky-800 ring-sky-600/20 dark:bg-sky-500/15 dark:text-sky-300',
-  green: 'bg-emerald-100 text-emerald-800 ring-emerald-600/20 dark:bg-emerald-500/15 dark:text-emerald-300',
+/** Blue / green track ticks, using the shadcn Badge with custom colours. */
+const TRACK_BADGE: Record<Track, string> = {
+  blue: 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300',
+  green: 'bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300',
 };
 
 export function TrackBadge({ track, className }: { track: Track; className?: string }) {
   return (
-    <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1', TRACK_STYLE[track], className)}>
-      <span className={cn('size-1.5 rounded-full', track === 'blue' ? 'bg-sky-500' : 'bg-emerald-500')} aria-hidden />
+    <Badge className={cn(TRACK_BADGE[track], className)}>
+      <BadgeCheckIcon data-icon="inline-start" aria-hidden />
       {TRACKS[track].label}
-    </span>
+    </Badge>
   );
 }
 

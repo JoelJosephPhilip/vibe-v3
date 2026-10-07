@@ -131,7 +131,7 @@ export function CoursePage({ courseId, versionId }: { courseId: string; versionI
 
       <aside className="flex flex-col gap-4 lg:sticky lg:top-20 lg:self-start" aria-label="Your progress">
         <div className="rounded-2xl border border-border bg-card p-4">
-          <CourseCover name={name} className="h-32 w-full" />
+          <CourseCover name={name} seed={courseId} className="h-32 w-full" />
           <p className="mt-4 font-semibold">Your progress</p>
           <ProgressBar value={pct} className="mt-3" label="Course progress" />
           <p className="mt-2 text-sm text-muted-foreground">

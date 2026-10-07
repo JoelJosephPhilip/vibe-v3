@@ -1,29 +1,11 @@
 import { BookOpenTextIcon, ClipboardCheckIcon, FileTextIcon, FolderKanbanIcon, MessageSquareTextIcon, PlayCircleIcon, ScaleIcon, type LucideIcon } from 'lucide-react';
 
+import { GeneratedCover } from '@/components/generated-art';
 import { cn } from '@/lib/utils';
 
-const MINOR_WORDS = new Set(['a', 'an', 'and', 'the', 'of', 'in', 'on', 'to', 'for', 'with']);
-
-/** Deterministic warm gradient per course so cards are recognisable without artwork. */
-export function CourseCover({ name, className }: { name: string; className?: string }) {
-  const hash = [...name].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
-  const hue = 20 + (hash % 40); // stays within the sunny orange range
-  const letters = name
-    .replace(/^sample:\s*/i, '')
-    .split(/\s+/)
-    .filter((w) => /^[A-Za-z]/.test(w) && !MINOR_WORDS.has(w.toLowerCase()))
-    .slice(0, 2)
-    .map((w) => w[0].toUpperCase())
-    .join('');
-  return (
-    <div
-      aria-hidden
-      className={cn('grid place-items-center overflow-hidden rounded-xl', className)}
-      style={{ background: `linear-gradient(135deg, oklch(0.86 0.09 ${hue + 40}), oklch(0.68 0.15 ${hue + 30}))` }}
-    >
-      <span className="font-aleo text-3xl font-semibold text-white/95 drop-shadow-sm">{letters || 'V'}</span>
-    </div>
-  );
+/** Course cover: deterministic generative art (boring-avatars), seeded by the course id. */
+export function CourseCover({ name, seed, className }: { name: string; seed?: string; className?: string }) {
+  return <GeneratedCover seed={seed ?? name} title={name} className={className} />;
 }
 
 export function ProgressBar({ value, className, label }: { value: number; className?: string; label?: string }) {

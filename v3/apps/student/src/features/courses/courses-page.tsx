@@ -85,7 +85,7 @@ export function CoursesPage() {
                     params={{ courseId: e.courseId, versionId: e.courseVersionId }}
                     className="flex h-full flex-col rounded-2xl border border-border bg-card p-4 transition-colors hover:border-foreground/20"
                   >
-                    <CourseCover name={e.course.name} className="h-36 w-full" />
+                    <CourseCover name={e.course.name} seed={e.courseId} className="h-36 w-full" />
                     <p className="mt-4 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
                       Course{e.cohortName ? ` · ${e.cohortName}` : ''}
                     </p>

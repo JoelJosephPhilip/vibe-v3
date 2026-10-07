@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
+import { GeneratedAvatar } from '@/components/generated-art';
 import { useTheme } from '@/components/theme-provider';
 import {
   DropdownMenu,
@@ -33,12 +34,6 @@ const NAV: { label: string; to: '/home' | '/courses' | '/profile'; icon: LucideI
 ];
 
 const COLLAPSE_KEY = 'sidebar-collapsed';
-
-export function initials(name: string | null | undefined, email?: string | null) {
-  const source = (name || email || '?').trim();
-  const parts = source.split(/[\s@.]+/).filter(Boolean);
-  return ((parts[0]?.[0] ?? '?') + (parts[1]?.[0] ?? '')).toUpperCase();
-}
 
 /** Uxcel-style shell: collapsible left sidebar, slim top bar, account menu. */
 export function AppShell() {
@@ -178,15 +173,13 @@ function AccountMenu() {
     <DropdownMenu>
       <DropdownMenuTrigger
         aria-label="Account menu"
-        className="grid size-9 place-items-center rounded-full bg-primary text-sm font-semibold text-primary-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+        className="grid size-9 place-items-center rounded-full outline-none ring-offset-2 ring-offset-background focus-visible:ring-[3px] focus-visible:ring-ring/50"
       >
-        {initials(user?.displayName, user?.email)}
+        <GeneratedAvatar seed={user?.uid ?? user?.email ?? 'student'} size={36} />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-60">
         <div className="flex flex-col items-center gap-1 px-3 py-3 text-center">
-          <span className="grid size-10 place-items-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
-            {initials(user?.displayName, user?.email)}
-          </span>
+          <GeneratedAvatar seed={user?.uid ?? user?.email ?? 'student'} size={44} />
           {user?.displayName && <span className="text-sm font-medium">{user.displayName}</span>}
           <span className="max-w-full truncate text-xs text-muted-foreground">{user?.email}</span>
         </div>

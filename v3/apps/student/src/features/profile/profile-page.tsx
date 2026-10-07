@@ -8,7 +8,7 @@ import { useTheme } from '@/components/theme-provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { initials } from '@/features/app-shell/app-shell';
+import { GeneratedAvatar } from '@/components/generated-art';
 import { useAuth } from '@/features/auth/auth-provider';
 import { NAME_PATTERN, PASSWORD_RULES } from '@/features/auth/signup-page';
 import { api } from '@/lib/api';
@@ -45,9 +45,7 @@ export function ProfilePage() {
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:py-10">
       <div className="flex items-center gap-4">
-        <span className="grid size-16 place-items-center rounded-full bg-primary font-aleo text-xl font-semibold text-primary-foreground">
-          {initials(user?.displayName, user?.email)}
-        </span>
+        <GeneratedAvatar seed={user?.uid ?? user?.email ?? 'student'} size={64} label="Your avatar" />
         <div className="min-w-0">
           <h1 className="truncate font-aleo text-3xl tracking-tight">{user?.displayName || 'Your profile'}</h1>
           <p className="truncate text-sm text-muted-foreground">{user?.email}</p>
