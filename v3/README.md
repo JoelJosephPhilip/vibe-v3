@@ -1,0 +1,30 @@
+# ViBe v3
+
+Nx monorepo for the new ViBe frontend. It currently holds one app:
+
+| Project | Path | What it is |
+|---|---|---|
+| `student` | `apps/student` | Student-facing web app (Vite + React 19 + TypeScript) |
+| `student-e2e` | `apps/student-e2e` | Playwright end-to-end tests for `student` |
+
+## Stack
+
+- **Build:** Vite, managed by Nx. Node 24 + pnpm.
+- **UI:** shadcn (Base UI primitives) with the StyleUI **notio** theme, **sunny** colour scheme, Tailwind CSS v4.
+- **Fonts:** Aleo for headings (self-hosted via `@fontsource-variable/aleo`); the system sans stack for body text.
+- **Theme:** light by default, with a light/dark toggle (`next-themes`).
+- **Tests:** Vitest + React Testing Library (unit/component); Playwright (e2e).
+
+## Commands
+
+```sh
+pnpm install
+pnpm nx dev student        # dev server on http://localhost:4300
+pnpm nx test student       # Vitest
+pnpm nx lint student
+pnpm nx typecheck student
+pnpm nx build student      # output: apps/student/dist
+pnpm nx e2e student-e2e    # Playwright
+```
+
+Add shadcn components from `apps/student`, e.g. `pnpm dlx shadcn@latest add <component>`.
