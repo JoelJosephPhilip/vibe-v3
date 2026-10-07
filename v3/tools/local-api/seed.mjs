@@ -133,7 +133,8 @@ const article = (name, content) => ({
 const m1 = await module('Getting started', 'What data structures are and why they matter.');
 const s1 = await section(m1, 'Orientation', 'Set up and first ideas.');
 await item(m1, s1, article('How this course works', 'Each lesson is a short segment followed by a checkpoint question.'));
-await item(m1, s1, video('Arrays in practice', 'https://www.youtube.com/watch?v=QJNwK2uJyGs', '00:05:00'));
+// Kept to 5 seconds so the green-track flow is quick to test locally.
+await item(m1, s1, video('Arrays in practice', 'https://www.youtube.com/watch?v=QJNwK2uJyGs', '00:00:05'));
 
 const m2 = await module('Lookups by key', 'Hash maps and the trade-offs behind them.');
 const s2 = await section(m2, 'Hash maps', 'Constant-time lookups on average.');
