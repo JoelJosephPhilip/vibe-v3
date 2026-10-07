@@ -102,7 +102,7 @@ export function CoursePage({ courseId, versionId }: { courseId: string; versionI
           percentage.data?.completed && <p className="mt-6 text-sm font-medium text-emerald-700 dark:text-emerald-400">Course completed</p>
         )}
 
-        <TrackSwitcher track={track} onChange={setTrack} />
+        <TrackSwitcher track={track} onChange={setTrack} linear={linear} />
 
         <section aria-labelledby="syllabus-title" className="mt-10 border-t border-border pt-8">
           <h2 id="syllabus-title" className="text-xl font-semibold">
@@ -319,7 +319,7 @@ function SectionBlock({
 }
 
 /** Luma-style segmented switch between the two ways through a course. */
-function TrackSwitcher({ track, onChange }: { track: Track; onChange: (t: Track) => void }) {
+function TrackSwitcher({ track, onChange, linear }: { track: Track; onChange: (t: Track) => void; linear: boolean }) {
   return (
     <section aria-labelledby="track-title" className="mt-8 rounded-2xl border border-border bg-card p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -347,7 +347,12 @@ function TrackSwitcher({ track, onChange }: { track: Track; onChange: (t: Track)
       </div>
       <div className="mt-3 flex items-start gap-3">
         <TrackBadge track={track} className="shrink-0" />
-        <p className="text-sm text-muted-foreground">{TRACKS[track].description}</p>
+        <p className="text-sm text-muted-foreground">
+          {TRACKS[track].description}
+          {track === 'blue' && linear && (
+            <> This course opens lessons in order, so study mode covers the lessons you’ve reached on the green track.</>
+          )}
+        </p>
       </div>
     </section>
   );

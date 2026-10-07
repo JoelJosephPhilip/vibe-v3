@@ -55,3 +55,17 @@ regenerates `packages/api/src/schema.ts`.
 - The spec has 35 dangling `$ref`s and one duplicated operationId;
   `tools/openapi/fetch-spec.mjs` patches those in the generated copy only.
 - Blog items need `points` as a decimal *string* and no `tags` (`@IsEmpty`).
+
+## Backend follow-ups (not done — backend changes are out of scope for now)
+
+- **Blue track in linear courses.** `GET /courses/{courseId}/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/item/{itemId}`
+  returns 403 for items the student hasn't reached when the course has
+  `linearProgressionEnabled` (`ItemService` → `CourseSettingService.isLinearProgressionEnabled`,
+  a course-wide setting). Blue (study, view-only) therefore can't open future
+  lessons. Needed: a read-only "study" variant of that endpoint that returns the
+  item content for any enrolled student **without** the linear check and
+  **without** moving the progress pointer (the current endpoint can advance
+  `currentItem` as a side effect). The frontend would call it only on the blue
+  track; green keeps using the current endpoint.
+- `GET /users/me` shadowed by `GET /users/:userId` (route order in `UserController`).
+- `POST /auth/login` calls Google's live Identity Toolkit directly (reCAPTCHA gate).
