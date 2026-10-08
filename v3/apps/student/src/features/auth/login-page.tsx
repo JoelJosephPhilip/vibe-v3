@@ -19,7 +19,7 @@ export function LoginPage({ redirect }: { redirect?: string }) {
   const [error, setError] = useState<string | null>(null);
 
   const goNext = (isNewUser = false) =>
-    navigate({ to: isNewUser ? '/onboarding' : (redirect ?? '/home'), replace: true });
+    isNewUser ? navigate({ to: '/onboarding', search: { redirect }, replace: true }) : navigate({ to: redirect ?? '/home', replace: true });
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -54,7 +54,7 @@ export function LoginPage({ redirect }: { redirect?: string }) {
       footer={
         <>
           Don&apos;t have an account?{' '}
-          <Link to="/signup" className="font-medium text-foreground hover:underline">
+          <Link to="/signup" search={{ redirect }} className="font-medium text-foreground hover:underline">
             Sign up
           </Link>
         </>

@@ -22,6 +22,7 @@ import { LandingPage } from '@/features/landing/landing-page';
 import { OnboardingPage } from '@/features/onboarding/onboarding-page';
 import { readOnboarding } from '@/features/onboarding/onboarding-state';
 import { ProfilePage } from '@/features/profile/profile-page';
+import { RegistrationPage } from '@/features/registration/registration-page';
 
 const rootRoute = createRootRoute({
   component: Outlet,
@@ -29,6 +30,15 @@ const rootRoute = createRootRoute({
 });
 
 const landingRoute = createRoute({ getParentRoute: () => rootRoute, path: '/', component: LandingPage });
+
+/** `?redirect=` — where to go after sign-in / sign-up / onboarding. Same-origin paths only. */
+type RedirectSearch = { redirect?: string };
+const validateRedirect = (search: Record<string, unknown>): RedirectSearch => ({
+  redirect:
+    typeof search.redirect === 'string' && search.redirect.startsWith('/') && !search.redirect.startsWith('//')
+      ? search.redirect
+      : undefined,
+});
 
 /** Auth pages are for signed-out visitors; signed-in users go straight to the app. */
 async function redirectIfSignedIn() {
@@ -38,9 +48,7 @@ async function redirectIfSignedIn() {
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/login',
-  validateSearch: (search: Record<string, unknown>): { redirect?: string } => ({
-    redirect: typeof search.redirect === 'string' && search.redirect.startsWith('/') ? search.redirect : undefined,
-  }),
+  validateSearch: validateRedirect,
   beforeLoad: redirectIfSignedIn,
   component: function LoginRoute() {
     const { redirect: to } = loginRoute.useSearch();
@@ -48,7 +56,16 @@ const loginRoute = createRoute({
   },
 });
 
-const signupRoute = createRoute({ getParentRoute: () => rootRoute, path: '/signup', beforeLoad: redirectIfSignedIn, component: SignupPage });
+const signupRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/signup',
+  validateSearch: validateRedirect,
+  beforeLoad: redirectIfSignedIn,
+  component: function SignupRoute() {
+    const { redirect: to } = signupRoute.useSearch();
+    return <SignupPage redirect={to} />;
+  },
+});
 const forgotRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/forgot-password',
@@ -65,13 +82,19 @@ async function requireUser(location: { href: string }) {
 const onboardingRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/onboarding',
+  validateSearch: validateRedirect,
   beforeLoad: ({ location }) => requireUser(location),
-  component: OnboardingPage,
+  component: function OnboardingRoute() {
+    const { redirect: to } = onboardingRoute.useSearch();
+    return <OnboardingPage redirect={to} />;
+  },
 });
 
-async function requireOnboardedUser(location: { href: string }) {
+async function requireOnboardedUser(location: { href: string; pathname: string }) {
   const user = await requireUser(location);
-  if (!readOnboarding(user.uid).completedAt) throw redirect({ to: '/onboarding' });
+  if (!readOnboarding(user.uid).completedAt) {
+    throw redirect({ to: '/onboarding', search: { redirect: location.pathname === '/home' ? undefined : location.href } });
+  }
 }
 
 /** Signed-in area. First-time users see onboarding once before anything else. */
@@ -107,6 +130,29 @@ const courseRoute = createRoute({
 });
 const profileRoute = createRoute({ getParentRoute: () => appRoute, path: '/profile', component: ProfilePage });
 
+/** The registration link instructors share. Needs an account (every registration API does). */
+const registerRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/register/$versionId/{-$cohortId}',
+  beforeLoad: ({ location }) => requireOnboardedUser(location),
+  component: function RegisterRoute() {
+    const { versionId, cohortId } = registerRoute.useParams();
+    return <RegistrationPage key={`${versionId}:${cohortId ?? ''}`} versionId={versionId} cohortId={cohortId} />;
+  },
+});
+
+/** Links already shared from the previous frontend keep working. */
+const legacyRegisterRoutes = ['/student/course-registration/$versionId/{-$cohortId}', '/course-registration/$versionId/{-$cohortId}'].map((path) =>
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path,
+    beforeLoad: ({ params }) => {
+      const { versionId, cohortId } = params as { versionId: string; cohortId?: string };
+      throw redirect({ to: '/register/$versionId/{-$cohortId}', params: { versionId, cohortId }, replace: true });
+    },
+  }),
+);
+
 const routeTree = rootRoute.addChildren([
   landingRoute,
   loginRoute,
@@ -114,6 +160,8 @@ const routeTree = rootRoute.addChildren([
   forgotRoute,
   onboardingRoute,
   learnRoute,
+  registerRoute,
+  ...legacyRegisterRoutes,
   appRoute.addChildren([homeRoute, coursesRoute, courseRoute, profileRoute]),
 ]);
 

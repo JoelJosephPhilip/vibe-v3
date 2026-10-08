@@ -22,7 +22,7 @@ export const PASSWORD_RULES = [
 /** Backend rule: names may only contain letters and spaces. */
 export const NAME_PATTERN = /^[A-Za-z ]+$/;
 
-export function SignupPage() {
+export function SignupPage({ redirect }: { redirect?: string } = {}) {
   const { signUp, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
   const [step, setStep] = useState<'details' | 'password'>('details');
@@ -52,7 +52,7 @@ export function SignupPage() {
     setPending('email');
     try {
       await signUp({ ...splitName(fullName), email: email.trim(), password });
-      await navigate({ to: '/onboarding', replace: true });
+      await navigate({ to: '/onboarding', search: { redirect }, replace: true });
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -65,7 +65,9 @@ export function SignupPage() {
     setPending('google');
     try {
       const { isNewUser } = await signInWithGoogle();
-      await navigate({ to: isNewUser ? '/onboarding' : '/home', replace: true });
+      await (isNewUser
+        ? navigate({ to: '/onboarding', search: { redirect }, replace: true })
+        : navigate({ to: redirect ?? '/home', replace: true }));
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -76,7 +78,7 @@ export function SignupPage() {
   const loginFooter = (
     <>
       Already have an account?{' '}
-      <Link to="/login" className="font-medium text-foreground hover:underline">
+      <Link to="/login" search={{ redirect }} className="font-medium text-foreground hover:underline">
         Log in
       </Link>
     </>

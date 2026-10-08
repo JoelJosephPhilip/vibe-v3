@@ -25,6 +25,8 @@ fi
 (cd "$BACKEND" && ./node_modules/.bin/tsc)
 
 until curl -sf http://127.0.0.1:9099/ >/dev/null; do sleep 1; done
+# The emulator only saves accounts on a clean exit; rebuild any missing logins from the DB.
+node "$HERE/restore-emulator-accounts.mjs" || echo "warning: could not restore emulator accounts" >&2
 (
   cd "$BACKEND"
   set -a

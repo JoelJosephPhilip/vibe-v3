@@ -32,11 +32,17 @@ Create `~/.config/vibe-v3/` (chmod 700) with two private files (chmod 600):
 tools/local-api/start.sh          # emulator + backend; Ctrl-C stops both (emulator accounts persist in tools/local-api/.emulator-data)
 node tools/local-api/seed.mjs     # sample instructor/student + one small course (idempotent)
 node tools/local-api/seed-quiz.mjs # adds a 5-question checkpoint quiz after the first video (idempotent)
+node tools/local-api/seed-registration.mjs # 2nd course with registration open (manual approval): /register/<versionId>
 pnpm nx dev student               # http://localhost:4300 — proxies /api and the emulator
 ```
 
 Sign in as `student@vibe.local` / `Password123!`. The seed refuses to run unless
 `DB_NAME` starts with `vibe_v3_local`.
+
+The emulator only saves accounts on a clean shutdown. `start.sh` runs
+`restore-emulator-accounts.mjs`, which re-creates any missing login from the
+database with the same uid: `@vibe.local` accounts get `Password123!` and
+everyone else gets the temporary password `ViBe-local-2026!`.
 
 ## Refreshing the API types
 

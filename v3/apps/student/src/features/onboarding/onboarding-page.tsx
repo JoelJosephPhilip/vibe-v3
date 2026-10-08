@@ -20,7 +20,7 @@ const STEPS = ['name', 'media', 'done'] as const;
 type Step = (typeof STEPS)[number];
 
 /** Uxcel-style onboarding: progress bar on top, one question per screen, sticky action bar. */
-export function OnboardingPage() {
+export function OnboardingPage({ redirect }: { redirect?: string } = {}) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -37,8 +37,8 @@ export function OnboardingPage() {
 
   const finish = useCallback(async () => {
     writeOnboarding(uid, { completedAt: new Date().toISOString() });
-    await navigate({ to: '/home', replace: true });
-  }, [navigate, uid]);
+    await navigate({ to: redirect ?? '/home', replace: true });
+  }, [navigate, redirect, uid]);
 
   async function saveName(e?: FormEvent) {
     e?.preventDefault();
@@ -176,7 +176,7 @@ export function OnboardingPage() {
               disabled={saving || (step === 'name' && !firstName.trim())}
             >
               {saving && <Loader2Icon className="animate-spin" />}
-              {step === 'done' ? 'Go to home' : 'Continue'}
+              {step === 'done' && !redirect ? 'Go to home' : 'Continue'}
             </Button>
           </div>
         </div>
