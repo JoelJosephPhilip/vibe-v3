@@ -87,3 +87,36 @@ export function useInviteInstructor() {
       ) as unknown as { invites: { inviteId: string; email: string; inviteStatus: string }[] },
   });
 }
+
+export function useCourse(courseId: string) {
+  return useQuery({
+    queryKey: ['admin', 'course', courseId],
+    queryFn: async () =>
+      unwrap(
+        await api.GET('/api/courses/{courseId}', { params: { path: { courseId } } }),
+      ) as unknown as { _id: string; name: string; description: string },
+    enabled: !!courseId,
+  });
+}
+
+export interface CourseEnrollment {
+  role: string;
+  status: string;
+  enrollmentDate: string;
+  user: { _id: string; email: string; firstName: string; lastName?: string };
+}
+
+export function useCourseEnrollments(courseId: string, versionId: string) {
+  return useQuery({
+    queryKey: ['admin', 'enrollments', courseId, versionId],
+    queryFn: async () => {
+      const raw = unwrap(
+        await api.GET('/api/users/enrollments/courses/{courseId}/versions/{versionId}', {
+          params: { path: { courseId, versionId } },
+        }),
+      ) as unknown as { enrollments: CourseEnrollment[] };
+      return raw.enrollments;
+    },
+    enabled: !!courseId && !!versionId,
+  });
+}

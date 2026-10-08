@@ -9,6 +9,8 @@ import {
 } from '@tanstack/react-router';
 
 import { AdminPage } from '@/features/admin/admin-page';
+import { AdminShell } from '@/features/admin/admin-shell';
+import { CourseDetailPage } from '@/features/admin/course-detail-page';
 import { AppShell } from '@/features/app-shell/app-shell';
 import { authReady } from '@/features/auth/auth-provider';
 import { ForgotPasswordPage } from '@/features/auth/forgot-password-page';
@@ -130,8 +132,27 @@ const courseRoute = createRoute({
   },
 });
 const profileRoute = createRoute({ getParentRoute: () => appRoute, path: '/profile', component: ProfilePage });
-/** Role check happens inside AdminPage itself (needs the user's Mongo profile, not just Firebase auth). */
-const adminRoute = createRoute({ getParentRoute: () => appRoute, path: '/admin', component: AdminPage });
+
+/**
+ * Admin gets its own shell/nav, separate from the student Home/My courses/Profile sidebar.
+ * Role check happens inside AdminPage/CourseDetailPage (needs the user's Mongo profile, not just Firebase auth) -
+ * a signed-in non-admin hitting these routes sees an "Admins only" message, not a redirect loop.
+ */
+const adminLayoutRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  id: 'admin',
+  beforeLoad: ({ location }) => requireOnboardedUser(location),
+  component: AdminShell,
+});
+const adminIndexRoute = createRoute({ getParentRoute: () => adminLayoutRoute, path: '/admin', component: AdminPage });
+const adminCourseRoute = createRoute({
+  getParentRoute: () => adminLayoutRoute,
+  path: '/admin/courses/$courseId/$versionId',
+  component: function AdminCourseRoute() {
+    const { courseId, versionId } = adminCourseRoute.useParams();
+    return <CourseDetailPage key={versionId} courseId={courseId} versionId={versionId} />;
+  },
+});
 
 /** The registration link instructors share. Needs an account (every registration API does). */
 const registerRoute = createRoute({
@@ -165,7 +186,8 @@ const routeTree = rootRoute.addChildren([
   learnRoute,
   registerRoute,
   ...legacyRegisterRoutes,
-  appRoute.addChildren([homeRoute, coursesRoute, courseRoute, profileRoute, adminRoute]),
+  appRoute.addChildren([homeRoute, coursesRoute, courseRoute, profileRoute]),
+  adminLayoutRoute.addChildren([adminIndexRoute, adminCourseRoute]),
 ]);
 
 export function createAppRouter(options: { initialPath?: string } = {}) {
