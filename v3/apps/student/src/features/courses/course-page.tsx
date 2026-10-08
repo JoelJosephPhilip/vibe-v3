@@ -1,14 +1,16 @@
 import { Link } from '@tanstack/react-router';
-import { CheckIcon, ChevronDownIcon, ChevronRightIcon, CircleIcon, LockIcon, ShieldCheckIcon } from 'lucide-react';
+import { ArrowRightIcon, CheckIcon, ChevronDownIcon, ChevronRightIcon, CircleIcon, LockIcon, ShieldCheckIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { Skeleton } from '@/components/ui/skeleton';
+import { buttonVariants } from '@/components/ui/button';
 import { TrackBadge } from '@/features/learn/lesson-page';
 import { useCourseSettings } from '@/features/learn/queries';
 import { TRACKS, useCourseTrack, type Track } from '@/features/learn/tracks';
 import { cn } from '@/lib/utils';
 
 import { CourseCover, ProgressBar, itemTypeMeta } from './course-ui';
+import { CourseSwitcher } from './course-switcher';
 import {
   useCourseVersion,
   useCurrentPath,
@@ -60,16 +62,31 @@ export function CoursePage({ courseId, versionId }: { courseId: string; versionI
   const name = enrollment?.course.name ?? 'Course';
   const counts = Object.entries(version.data.itemCounts ?? {}).filter(([, n]) => n);
 
+  const next = path.data?.item && path.data.module && path.data.section ? path.data : null;
+  const continueLabel = track === 'blue' ? 'Study where you left off' : pct > 0 ? 'Continue where you left off' : 'Start course';
+  const continueLink = next && {
+    to: '/learn/$courseId/$versionId/$moduleId/$sectionId/$itemId' as const,
+    params: { courseId, versionId, moduleId: next.module!.id, sectionId: next.section!.id, itemId: next.item!.id },
+    search: { track },
+  };
+
   return (
-    <div className="mx-auto grid max-w-6xl gap-8 px-4 py-8 sm:px-6 lg:grid-cols-[1fr_300px] lg:py-10">
+    <div
+      className={cn(
+        'mx-auto grid max-w-6xl gap-8 px-4 py-6 sm:px-6 md:py-8 lg:grid-cols-[1fr_300px] lg:py-10',
+        // Room for the phone "Continue" bar.
+        continueLink && 'pb-24 md:pb-8',
+      )}
+    >
       <div className="min-w-0">
-        <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-sm text-muted-foreground">
+        <nav aria-label="Breadcrumb" className="hidden items-center gap-1.5 text-sm text-muted-foreground md:flex">
           <Link to="/courses" className="hover:text-foreground">
             My courses
           </Link>
           <ChevronRightIcon className="size-3.5" aria-hidden />
           <span className="truncate text-foreground">{name}</span>
         </nav>
+        <CourseSwitcher current={versionId} name={name} className="md:hidden" />
 
         <p className="mt-6 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">Course</p>
         <h1 className="mt-1 font-aleo text-3xl tracking-tight sm:text-4xl">{name}</h1>
@@ -89,15 +106,34 @@ export function CoursePage({ courseId, versionId }: { courseId: string; versionI
           ))}
         </ul>
 
-        {path.data?.item && path.data.module && path.data.section ? (
-          <Link
-            to="/learn/$courseId/$versionId/$moduleId/$sectionId/$itemId"
-            params={{ courseId, versionId, moduleId: path.data.module.id, sectionId: path.data.section.id, itemId: path.data.item.id }}
-            search={{ track }}
-            className="mt-6 inline-flex h-10 items-center gap-2 rounded-md bg-foreground px-4 text-sm font-medium text-background hover:bg-foreground/85"
-          >
-            {track === 'blue' ? 'Study where you left off' : pct > 0 ? 'Continue where you left off' : 'Start course'}
-          </Link>
+        {/* Progress sits up top below lg; the sidebar card shows it on wide screens. */}
+        {percentage.data && (
+          <div className="mt-5 lg:hidden">
+            <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
+              <span>{Math.round(pct)}% complete</span>
+              <span>
+                {percentage.data.completedItems} of {percentage.data.totalItems} lessons
+              </span>
+            </div>
+            <ProgressBar value={pct} label="Course progress" />
+          </div>
+        )}
+
+        {continueLink ? (
+          <>
+            <Link
+              {...continueLink}
+              className="mt-6 hidden h-10 items-center gap-2 rounded-md bg-foreground px-4 text-sm font-medium text-background hover:bg-foreground/85 md:inline-flex"
+            >
+              {continueLabel}
+            </Link>
+            <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 border-t border-border bg-background/95 px-4 py-3 backdrop-blur-md md:hidden">
+              <Link {...continueLink} className={cn(buttonVariants({ size: 'lg' }), 'h-11 w-full')}>
+                <span className="min-w-0 truncate">{continueLabel}</span>
+                <ArrowRightIcon data-icon="inline-end" />
+              </Link>
+            </div>
+          </>
         ) : (
           percentage.data?.completed && <p className="mt-6 text-sm font-medium text-emerald-700 dark:text-emerald-400">Course completed</p>
         )}
@@ -130,7 +166,7 @@ export function CoursePage({ courseId, versionId }: { courseId: string; versionI
       </div>
 
       <aside className="flex flex-col gap-4 lg:sticky lg:top-20 lg:self-start" aria-label="Your progress">
-        <div className="rounded-2xl border border-border bg-card p-4">
+        <div className="hidden rounded-2xl border border-border bg-card p-4 lg:block">
           <CourseCover name={name} seed={courseId} className="h-32 w-full" />
           <p className="mt-4 font-semibold">Your progress</p>
           <ProgressBar value={pct} className="mt-3" label="Course progress" />
@@ -326,7 +362,7 @@ function TrackSwitcher({ track, onChange, linear }: { track: Track; onChange: (t
         <h2 id="track-title" className="font-semibold">
           How do you want to go through this course?
         </h2>
-        <div role="radiogroup" aria-label="Track" className="inline-flex w-fit rounded-lg bg-muted p-1">
+        <div role="radiogroup" aria-label="Track" className="grid w-full grid-cols-2 rounded-lg bg-muted p-1 sm:inline-flex sm:w-fit">
           {(['green', 'blue'] as const).map((t) => (
             <button
               key={t}
@@ -335,7 +371,7 @@ function TrackSwitcher({ track, onChange, linear }: { track: Track; onChange: (t
               aria-checked={track === t}
               onClick={() => onChange(t)}
               className={cn(
-                'inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors',
+                'inline-flex items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors sm:py-1.5',
                 track === t ? 'bg-background shadow-xs' : 'text-muted-foreground hover:text-foreground',
               )}
             >

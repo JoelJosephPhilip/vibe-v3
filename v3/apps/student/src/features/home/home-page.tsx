@@ -89,7 +89,7 @@ function ResumeCard({ enrollment: e }: { enrollment: EnrollmentSummary }) {
       {/* Uxcel's stacked-card hint that there's more behind this one */}
       <div aria-hidden className="absolute inset-x-4 -bottom-2 h-full rounded-2xl border border-border bg-muted/60" />
       <div className="relative grid gap-5 rounded-2xl border border-border bg-card p-4 shadow-xs sm:grid-cols-[220px_1fr] sm:p-5">
-        <CourseCover name={e.course.name} seed={e.courseId} className="aspect-[4/3] w-full sm:aspect-auto sm:h-full" />
+        <CourseCover name={e.course.name} seed={e.courseId} className="aspect-[2/1] w-full sm:aspect-auto sm:h-full" />
         <div className="flex min-w-0 flex-col">
           <p className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">Course</p>
           <h3 className="mt-1 font-aleo text-xl leading-snug">{e.course.name}</h3>

@@ -56,15 +56,20 @@ export function QuizRunner({
   ensureWatchItem,
   onPassed,
   onExit,
+  onAnsweringChange,
 }: {
   lessonRef: LessonRef;
   item: LessonItem;
   ensureWatchItem: () => Promise<string | undefined>;
   onPassed: () => void;
   onExit: () => void;
+  /** True while an attempt is open with answers not yet submitted. */
+  onAnsweringChange?: (answering: boolean) => void;
 }) {
   const details = item.details as unknown as QuizDetails;
   const [stage, setStage] = useState<Stage>({ kind: 'intro' });
+  const answering = stage.kind === 'answering';
+  useEffect(() => onAnsweringChange?.(answering), [answering, onAnsweringChange]);
   const [error, setError] = useState<string | null>(null);
   const watchItemId = useRef<string | undefined>(undefined);
 

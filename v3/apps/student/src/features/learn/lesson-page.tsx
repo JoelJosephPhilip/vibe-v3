@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { ApiError, unwrap } from '@vibe/api';
-import { ArrowLeftIcon, ArrowRightIcon, BadgeCheckIcon, CheckCircle2Icon, Loader2Icon, LockIcon, ShieldAlertIcon, XIcon } from 'lucide-react';
+import { ArrowLeftIcon, ArrowRightIcon, BadgeCheckIcon, CheckCircle2Icon, HandIcon, Loader2Icon, LockIcon, ShieldAlertIcon, XIcon } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import { itemTypeMeta, ProgressBar } from '@/features/courses/course-ui';
 import {
@@ -160,6 +161,7 @@ function GreenQuiz({ lessonRef: ref, item, progress }: { lessonRef: LessonRef; i
   const goToNext = useGoToNext(ref);
   const refresh = useAfterQuizSubmit();
   const watchItem = useRef<Promise<string> | null>(null);
+  const [answering, setAnswering] = useState(false);
 
   // Already-passed quizzes can be retaken for practice without touching progress.
   const ensureWatchItem = useCallback(async () => {
@@ -169,8 +171,19 @@ function GreenQuiz({ lessonRef: ref, item, progress }: { lessonRef: LessonRef; i
   }, [item.isAlreadyWatched, ref]);
 
   return (
-    <LessonFrame lessonRef={ref} track="green" title={item.name} progress={progress}>
+    <LessonFrame
+      lessonRef={ref}
+      track="green"
+      title={item.name}
+      progress={progress}
+      exitWarning={
+        answering
+          ? 'Your answers haven’t been submitted yet, so they’ll be lost. This attempt has already started and counts towards your attempt limit.'
+          : undefined
+      }
+    >
       <QuizRunner
+        onAnsweringChange={setAnswering}
         lessonRef={ref}
         item={item}
         ensureWatchItem={ensureWatchItem}
@@ -269,9 +282,11 @@ function GreenLesson({ lessonRef: ref, item, progress }: { lessonRef: LessonRef;
       title={item.name}
       progress={progress}
       footerTone={alreadyDone || (ready && item.type === 'VIDEO') ? 'success' : 'neutral'}
+      footerLayout="stack"
+      exitWarning={alreadyDone ? undefined : 'This lesson only counts once you finish it. If you leave now, you’ll start it again next time.'}
       footer={
         <>
-          <p className="text-sm text-muted-foreground" aria-live="polite">
+          <p className="text-center text-sm text-muted-foreground empty:hidden sm:text-left" aria-live="polite">
             {alreadyDone ? (
               <span className="inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
                 <CheckCircle2Icon className="size-4" aria-hidden /> Completed
@@ -282,7 +297,7 @@ function GreenLesson({ lessonRef: ref, item, progress }: { lessonRef: LessonRef;
               'Watch to the end to continue'
             ) : null}
           </p>
-          <Button size="lg" onClick={goNext} disabled={!ready || finishing || Boolean(startError && !alreadyDone)}>
+          <Button size="lg" className="h-11 w-full sm:h-10 sm:w-auto" onClick={goNext} disabled={!ready || finishing || Boolean(startError && !alreadyDone)}>
             {finishing && <Loader2Icon className="animate-spin" />}
             Continue
           </Button>
@@ -420,7 +435,11 @@ export function TrackBadge({ track, className }: { track: Track; className?: str
   );
 }
 
-/** Uxcel lesson frame: close, course progress and track on top; sticky action bar below. */
+/**
+ * Uxcel lesson frame: close, course progress and track on top; sticky action
+ * bar below. On phones the bar stacks its hint above a full-width button and
+ * both bars respect the safe areas.
+ */
 function LessonFrame({
   lessonRef: ref,
   track,
@@ -429,6 +448,8 @@ function LessonFrame({
   children,
   footer,
   footerTone = 'neutral',
+  footerLayout = 'row',
+  exitWarning,
 }: {
   lessonRef: LessonRef;
   track: Track;
@@ -437,20 +458,34 @@ function LessonFrame({
   children: ReactNode;
   footer?: ReactNode;
   footerTone?: 'neutral' | 'success';
+  footerLayout?: 'row' | 'stack';
+  /** When set, closing the lesson asks first (Uxcel's "Hold it right there!"). */
+  exitWarning?: string;
 }) {
   const other: Track = track === 'blue' ? 'green' : 'blue';
+  const navigate = useNavigate();
+  const [confirmExit, setConfirmExit] = useState(false);
+  const course = { to: '/courses/$courseId/$versionId' as const, params: { courseId: ref.courseId, versionId: ref.versionId } };
+  const closeClass = 'grid size-10 shrink-0 place-items-center rounded-md hover:bg-muted';
+
   return (
     <div className="flex min-h-dvh flex-col bg-background">
-      <header className={cn('sticky top-0 z-30 border-b bg-background/90 backdrop-blur-md', track === 'blue' ? 'border-sky-500/30' : 'border-emerald-500/30')}>
-        <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3">
-          <Link
-            to="/courses/$courseId/$versionId"
-            params={{ courseId: ref.courseId, versionId: ref.versionId }}
-            aria-label="Close lesson"
-            className="grid size-9 shrink-0 place-items-center rounded-md hover:bg-muted"
-          >
-            <XIcon className="size-5" />
-          </Link>
+      <header
+        className={cn(
+          'sticky top-0 z-30 border-b bg-background/90 pt-[env(safe-area-inset-top)] backdrop-blur-md',
+          track === 'blue' ? 'border-sky-500/30' : 'border-emerald-500/30',
+        )}
+      >
+        <div className="mx-auto flex max-w-5xl items-center gap-3 px-3 py-2.5 sm:px-4 sm:py-3">
+          {exitWarning ? (
+            <button type="button" aria-label="Close lesson" onClick={() => setConfirmExit(true)} className={closeClass}>
+              <XIcon className="size-5" />
+            </button>
+          ) : (
+            <Link {...course} aria-label="Close lesson" className={closeClass}>
+              <XIcon className="size-5" />
+            </Link>
+          )}
           <ProgressBar value={progress} className="h-2 flex-1" label="Certified progress (green track)" />
           <span className="hidden max-w-52 truncate text-sm text-muted-foreground md:inline">{title}</span>
           <TrackBadge track={track} />
@@ -464,19 +499,44 @@ function LessonFrame({
           </Link>
         </div>
       </header>
-      <main id="main" className="flex flex-1 flex-col pb-24">
+      <main id="main" className={cn('flex flex-1 flex-col', footer ? 'pb-[calc(9rem+env(safe-area-inset-bottom))] sm:pb-24' : 'pb-[env(safe-area-inset-bottom)]')}>
         {children}
       </main>
       {footer && (
         <footer
           className={cn(
-            'fixed inset-x-0 bottom-0 z-30 border-t backdrop-blur-md',
+            'fixed inset-x-0 bottom-0 z-30 border-t pb-[env(safe-area-inset-bottom)] backdrop-blur-md',
             footerTone === 'success' ? 'border-emerald-600/20 bg-emerald-50/90 dark:bg-emerald-950/60' : 'border-border bg-muted/70',
           )}
         >
-          <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">{footer}</div>
+          <div
+            className={cn(
+              'mx-auto flex max-w-5xl gap-4 px-4 py-3',
+              footerLayout === 'stack' ? 'flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4' : 'items-center justify-between',
+            )}
+          >
+            {footer}
+          </div>
         </footer>
       )}
+
+      <Sheet open={confirmExit} onOpenChange={setConfirmExit}>
+        <SheetContent side="bottom" showCloseButton={false} className="mx-auto max-w-lg gap-0 rounded-t-2xl px-5 pt-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-center sm:bottom-6 sm:rounded-2xl sm:border">
+          <span aria-hidden className="mx-auto grid size-14 place-items-center rounded-full bg-primary/15 text-primary">
+            <HandIcon className="size-7" />
+          </span>
+          <SheetTitle className="mt-4 font-aleo text-2xl">Hold it right there!</SheetTitle>
+          <SheetDescription className="mt-2">{exitWarning}</SheetDescription>
+          <div className="mt-6 grid grid-cols-2 gap-3">
+            <Button variant="outline" size="lg" className="h-11" onClick={() => void navigate(course)}>
+              Leave lesson
+            </Button>
+            <Button size="lg" className="h-11" autoFocus onClick={() => setConfirmExit(false)}>
+              Keep learning
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

@@ -3,16 +3,14 @@ import {
   BookOpenIcon,
   HomeIcon,
   LogOutIcon,
-  MenuIcon,
   MoonIcon,
   PanelLeftCloseIcon,
   PanelLeftOpenIcon,
   SunIcon,
   UserIcon,
-  XIcon,
   type LucideIcon,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 import { GeneratedAvatar } from '@/components/generated-art';
 import { useTheme } from '@/components/theme-provider';
@@ -44,11 +42,6 @@ export function AppShell() {
       return false;
     }
   });
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
-
-  useEffect(() => setMobileOpen(false), [pathname]);
-
   function toggleCollapsed() {
     setCollapsed((c) => {
       try {
@@ -92,39 +85,17 @@ export function AppShell() {
         </div>
       </aside>
 
-      {mobileOpen && (
-        <div className="fixed inset-0 z-50 md:hidden" role="dialog" aria-modal="true" aria-label="Menu">
-          <button type="button" aria-label="Close menu" className="absolute inset-0 bg-black/40" onClick={() => setMobileOpen(false)} />
-          <div className="absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col bg-background shadow-xl">
-            <div className="flex h-14 items-center justify-between px-4">
-              <Wordmark />
-              <button type="button" aria-label="Close menu" onClick={() => setMobileOpen(false)} className="grid size-9 place-items-center rounded-md hover:bg-muted">
-                <XIcon className="size-5" />
-              </button>
-            </div>
-            <SidebarNav collapsed={false} />
-          </div>
-        </div>
-      )}
-
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b border-border bg-background/85 px-4 backdrop-blur-md sm:px-6">
-          <button
-            type="button"
-            aria-label="Open menu"
-            onClick={() => setMobileOpen(true)}
-            className="grid size-9 place-items-center rounded-md hover:bg-muted md:hidden"
-          >
-            <MenuIcon className="size-5" />
-          </button>
-          <span className="md:hidden">
+        <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b border-border bg-background/85 px-4 pt-[env(safe-area-inset-top)] backdrop-blur-md [box-sizing:content-box] sm:px-6">
+          <Link to="/home" aria-label="ViBe home" className="md:hidden">
             <Wordmark />
-          </span>
+          </Link>
           <div className="ml-auto">
             <AccountMenu />
           </div>
         </header>
-        <main id="main" className="relative flex-1">
+        {/* Bottom padding keeps content clear of the phone tab bar. */}
+        <main id="main" className="relative flex-1 pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
           {/* Soft Luma-style tint behind the top of every app page */}
           <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-56 bg-gradient-to-b from-primary/8 to-transparent" />
           <div className="relative">
@@ -132,7 +103,43 @@ export function AppShell() {
           </div>
         </main>
       </div>
+      <TabBar />
     </div>
+  );
+}
+
+/** Uxcel Go-style bottom tab bar on phones; the sidebar takes over from md up. */
+function TabBar() {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  return (
+    <nav
+      aria-label="Tabs"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md md:hidden"
+    >
+      <ul className="mx-auto grid h-16 max-w-md grid-cols-3">
+        {NAV.map(({ label, to, icon: Icon }) => {
+          // "My courses" stays selected inside a course.
+          const active = pathname === to || (to === '/courses' && pathname.startsWith('/courses/'));
+          return (
+            <li key={to}>
+              <Link
+                to={to}
+                aria-current={active ? 'page' : undefined}
+                className={cn(
+                  'flex h-full flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors',
+                  active ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                <span className={cn('grid h-7 w-12 place-items-center rounded-full transition-colors', active && 'bg-primary/12')}>
+                  <Icon className="size-5" aria-hidden strokeWidth={active ? 2.25 : 1.75} />
+                </span>
+                {label}
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
   );
 }
 
