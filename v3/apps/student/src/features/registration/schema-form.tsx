@@ -229,14 +229,15 @@ export function SchemaFields({
               <Input
                 {...common}
                 type="number"
-                inputMode="numeric"
+                inputMode={field.type === 'integer' ? 'numeric' : 'decimal'}
+                enterKeyHint="next"
                 min={field.minimum}
                 max={field.maximum}
                 step={field.type === 'integer' ? 1 : 'any'}
                 placeholder={ui?.['ui:placeholder']}
                 value={String(value ?? '')}
                 onChange={(e) => onChange(name, e.target.value)}
-                className="h-10"
+                className="h-11 sm:h-10"
               />
             );
             break;
@@ -245,11 +246,16 @@ export function SchemaFields({
               <Input
                 {...common}
                 type={widget === 'email' ? 'email' : widget === 'date' ? 'date' : 'text'}
-                autoComplete={name === 'Name' ? 'name' : widget === 'email' ? 'email' : undefined}
+                autoComplete={/^(full\s*)?name$/i.test(name) ? 'name' : widget === 'email' ? 'email' : undefined}
+                // Phone keyboards: no auto-capitalising emails, capitalise names, "Next" key.
+                autoCapitalize={widget === 'email' ? 'none' : /name/i.test(name) ? 'words' : undefined}
+                spellCheck={widget === 'email' ? false : undefined}
+                enterKeyHint="next"
                 placeholder={ui?.['ui:placeholder']}
                 value={String(value ?? '')}
                 onChange={(e) => onChange(name, e.target.value)}
-                className="h-10"
+                // iOS shrinks empty date inputs; keep them full width and left aligned.
+                className={cn('h-11 sm:h-10', widget === 'date' && 'block w-full min-w-0 appearance-none text-left')}
               />
             );
         }

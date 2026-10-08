@@ -117,11 +117,11 @@ export function OnboardingPage({ redirect }: { redirect?: string } = {}) {
               <form onSubmit={saveName} className="mt-8 grid w-full gap-4 text-left sm:grid-cols-2">
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="first-name">First name</Label>
-                  <Input id="first-name" value={firstName} onChange={(e) => setFirstName(e.target.value)} autoComplete="given-name" className="h-10" autoFocus />
+                  <Input id="first-name" value={firstName} onChange={(e) => setFirstName(e.target.value)} autoComplete="given-name" autoCapitalize="words" className="h-11 sm:h-10" autoFocus />
                 </div>
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="last-name">Last name</Label>
-                  <Input id="last-name" value={lastName} onChange={(e) => setLastName(e.target.value)} autoComplete="family-name" className="h-10" />
+                  <Input id="last-name" value={lastName} onChange={(e) => setLastName(e.target.value)} autoComplete="family-name" autoCapitalize="words" className="h-11 sm:h-10" />
                 </div>
                 <button type="submit" hidden />
               </form>
@@ -158,7 +158,7 @@ export function OnboardingPage({ redirect }: { redirect?: string } = {}) {
         </div>
       </main>
 
-      <footer className="fixed inset-x-0 bottom-0 border-t border-border bg-muted/60 backdrop-blur-md">
+      <footer className="fixed inset-x-0 bottom-0 border-t border-border bg-muted/60 pb-[env(safe-area-inset-bottom)] backdrop-blur-md">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-4">
           {step !== 'done' ? (
             <Button type="button" variant="ghost" onClick={() => (step === 'media' ? setStep('done') : finish())}>

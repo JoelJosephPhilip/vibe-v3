@@ -73,12 +73,14 @@ export function LoginPage({ redirect }: { redirect?: string }) {
           <Input
             id="email"
             type="email"
+            autoCapitalize="none"
+            spellCheck={false}
             autoComplete="email"
             placeholder="you@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            className="h-10"
+            className="h-11 sm:h-10"
           />
         </div>
         <div className="flex flex-col gap-2">
@@ -91,7 +93,7 @@ export function LoginPage({ redirect }: { redirect?: string }) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="h-10 pr-10"
+              className="h-11 pr-10 sm:h-10"
             />
             <button
               type="button"

@@ -76,7 +76,7 @@ function CourseRegistration({ details, versionId, cohortId }: { details: Registr
   return (
     <div className="grid gap-8 md:grid-cols-[minmax(0,300px)_1fr] lg:gap-12">
       <aside className="flex flex-col gap-6">
-        <GeneratedCover seed={details.courseId} title={name} className="aspect-[16/9] w-full shadow-lg shadow-primary/10 md:aspect-square" />
+        <GeneratedCover seed={details.courseId} title={name} className="aspect-[5/2] w-full shadow-lg shadow-primary/10 sm:aspect-[16/9] md:aspect-square" />
         <Instructors instructors={details.instructors} className="hidden md:flex" />
       </aside>
 
@@ -269,7 +269,10 @@ function RegistrationFormCard({
     setCohortError(needsCohort ? 'Choose a cohort to join.' : null);
     if (Object.keys(found).length || needsCohort) {
       const first = Object.keys(found)[0];
-      document.getElementById(first ? `reg-${first.replace(/\W+/g, '-')}` : 'reg-cohort')?.focus();
+      // Centre the first problem so its label isn't hidden behind the screen edge on phones.
+      const el = document.getElementById(first ? `reg-${first.replace(/\W+/g, '-')}` : 'reg-cohort');
+      el?.focus({ preventScroll: true });
+      el?.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
       return;
     }
     setError(await onSubmit({ ...toSubmission(schema, values), ...(cohort ? { cohort } : {}) }));
@@ -282,7 +285,7 @@ function RegistrationFormCard({
   }
 
   return (
-    <section aria-labelledby="register-title" className="overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
+    <section aria-labelledby="register-title" className="overflow-clip rounded-2xl border border-border bg-card shadow-xs">
       <div className="border-b border-border bg-muted/50 px-4 py-2.5 sm:px-5">
         <h2 id="register-title" className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
           Registration
@@ -354,10 +357,13 @@ function RegistrationFormCard({
 
         <FormError message={error} />
 
+        {/* On phones the button stays pinned while scrolling through a long form. */}
+        <div className="sticky bottom-0 z-10 -mx-4 -mb-4 border-t border-border bg-card/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md sm:static sm:mx-0 sm:mb-0 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
         <Button type="submit" size="lg" className="w-full" disabled={pending}>
           {pending && <Loader2Icon className="animate-spin" />}
           Register
         </Button>
+        </div>
       </form>
     </section>
   );

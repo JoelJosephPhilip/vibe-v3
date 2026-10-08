@@ -54,7 +54,7 @@ export function CoursesPage() {
             placeholder="Search your courses"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="h-10 pl-9"
+            className="h-11 pl-9 sm:h-10"
           />
         </div>
       </div>

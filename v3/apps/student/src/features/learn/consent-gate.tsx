@@ -55,7 +55,7 @@ export function ConsentGate({ courseId, versionId }: { courseId: string; version
         </label>
         <div className="flex flex-col gap-2 sm:max-w-sm">
           <Label htmlFor="consent-signature">Type your full name to sign</Label>
-          <Input id="consent-signature" value={signature} onChange={(e) => setSignature(e.target.value)} autoComplete="name" className="h-10" />
+          <Input id="consent-signature" value={signature} onChange={(e) => setSignature(e.target.value)} autoComplete="name" className="h-11 sm:h-10" />
           <p className="text-xs text-muted-foreground">Date: {new Date().toLocaleDateString()}</p>
         </div>
         {sign.isError && (

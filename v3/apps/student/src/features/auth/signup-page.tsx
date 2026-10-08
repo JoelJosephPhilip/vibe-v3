@@ -110,7 +110,7 @@ export function SignupPage({ redirect }: { redirect?: string } = {}) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 aria-describedby="password-rules"
-                className="h-10 pr-10"
+                className="h-11 pr-10 sm:h-10"
               />
               <button
                 type="button"
@@ -161,11 +161,11 @@ export function SignupPage({ redirect }: { redirect?: string } = {}) {
       <form onSubmit={onDetails} className="flex flex-col gap-4" noValidate>
         <div className="flex flex-col gap-2">
           <Label htmlFor="name">Full name</Label>
-          <Input id="name" autoComplete="name" placeholder="Your name" value={fullName} onChange={(e) => setFullName(e.target.value)} className="h-10" />
+          <Input id="name" autoComplete="name" autoCapitalize="words" enterKeyHint="next" placeholder="Your name" value={fullName} onChange={(e) => setFullName(e.target.value)} className="h-11 sm:h-10" />
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="email">Email address</Label>
-          <Input id="email" type="email" autoComplete="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} className="h-10" />
+          <Input id="email" type="email" autoCapitalize="none" spellCheck={false} autoComplete="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} className="h-11 sm:h-10" />
         </div>
 
         <FormError message={error} />
