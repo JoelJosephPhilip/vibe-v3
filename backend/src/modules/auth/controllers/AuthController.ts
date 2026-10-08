@@ -189,9 +189,23 @@ export class AuthController {
       throw new HttpError(500, 'Failed to verify reCAPTCHA. Please try again.');
     }
 
+    // In development, route to the local Firebase Auth emulator when it's
+    // running; in production use the real Identity Toolkit API with the key.
+    const emulatorHost = process.env.FIREBASE_AUTH_EMULATOR_HOST;
+    let signInUrl: string;
+    if (emulatorHost) {
+      signInUrl = `http://${emulatorHost}/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=emulator`;
+    } else {
+      const apiKey = appConfig.firebase.apiKey;
+      if (!apiKey) {
+        throw new HttpError(500, 'Firebase API key is not configured');
+      }
+      signInUrl = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`;
+    }
+
     // Proceed with Firebase authentication
     const data = await fetch(
-      `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${appConfig.firebase.apiKey}`,
+      signInUrl,
       {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
