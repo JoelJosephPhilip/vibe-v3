@@ -1,5 +1,6 @@
+import { Link } from '@tanstack/react-router';
 import { ApiError } from '@vibe/api';
-import { CheckCircle2Icon, Loader2Icon, PlusIcon, SendIcon, ShieldAlertIcon } from 'lucide-react';
+import { ChevronRightIcon, CheckCircle2Icon, Loader2Icon, PlusIcon, ShieldAlertIcon } from 'lucide-react';
 import { useState, type FormEvent, type ReactNode } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -8,13 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 
-import {
-  useAllCourses,
-  useCreateCourse,
-  useCurrentUserProfile,
-  useInviteInstructor,
-  type AdminCourse,
-} from './queries';
+import { useAllCourses, useCreateCourse, useCurrentUserProfile } from './queries';
 
 function Status({ kind, children }: { kind: 'ok' | 'error'; children: ReactNode }) {
   return (
@@ -137,48 +132,23 @@ function CourseList() {
   if (courses.data.length === 0) return <p className="text-sm text-muted-foreground">No courses yet.</p>;
 
   return (
-    <ul className="grid gap-4">
+    <ul className="grid gap-3">
       {courses.data.map((course) => (
-        <li key={course._id} className="rounded-2xl border border-border p-4">
-          <p className="font-medium">{course.name}</p>
-          <p className="mt-1 text-sm text-muted-foreground">{course.description}</p>
-          <p className="mt-1 text-xs text-muted-foreground">{course.instructors.length} instructor(s)</p>
-          {course.versions[0] && (
-            <div className="mt-3 max-w-sm">
-              <InviteInstructorForm courseId={course._id} versionId={course.versions[0]} />
+        <li key={course._id}>
+          <Link
+            to="/admin/courses/$courseId/$versionId"
+            params={{ courseId: course._id, versionId: course.versions[0] ?? '' }}
+            className="flex items-center gap-3 rounded-2xl border border-border p-4 transition-colors hover:bg-muted/50"
+          >
+            <div className="min-w-0 flex-1">
+              <p className="font-medium">{course.name}</p>
+              <p className="mt-1 truncate text-sm text-muted-foreground">{course.description}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{course.instructors.length} instructor(s)</p>
             </div>
-          )}
+            <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+          </Link>
         </li>
       ))}
     </ul>
-  );
-}
-
-function InviteInstructorForm({ courseId, versionId }: { courseId: AdminCourse['_id']; versionId: string }) {
-  const invite = useInviteInstructor();
-  const [email, setEmail] = useState('');
-
-  function onSubmit(e: FormEvent) {
-    e.preventDefault();
-    invite.mutate(
-      { courseId, versionId, email },
-      { onSuccess: () => setEmail('') },
-    );
-  }
-
-  return (
-    <form onSubmit={onSubmit} className="flex items-end gap-2">
-      <div className="grid flex-1 gap-1.5">
-        <Label htmlFor={`invite-${courseId}`} className="text-xs">
-          Invite instructor
-        </Label>
-        <Input id={`invite-${courseId}`} type="email" placeholder="instructor@vibe.local" value={email} onChange={(e) => setEmail(e.target.value)} required />
-      </div>
-      <Button type="submit" size="sm" variant="outline" disabled={invite.isPending}>
-        {invite.isPending ? <Loader2Icon className="size-4 animate-spin" aria-hidden /> : <SendIcon className="size-4" aria-hidden />}
-      </Button>
-      {invite.isSuccess && <Status kind="ok">Invited.</Status>}
-      {invite.isError && <Status kind="error">{errorMessage(invite.error)}</Status>}
-    </form>
   );
 }
