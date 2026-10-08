@@ -22034,6 +22034,24 @@
     "description": "Retrieves user information for the currently authenticated user."
    }
   },
+  "/api/users/": {
+   "get": {
+    "operationId": "UserController.listAllUsers",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {}
+      },
+      "description": "Successful response"
+     }
+    },
+    "summary": "List all users (admin only)",
+    "tags": [
+     "Users"
+    ],
+    "description": "Fetches every user in the system. Admin only."
+   }
+  },
   "/api/users/{userId}": {
    "get": {
     "operationId": "UserController.getUserById",
