@@ -11,6 +11,7 @@ import {
 import { AdminPage } from '@/features/admin/admin-page';
 import { AdminShell } from '@/features/admin/admin-shell';
 import { CourseDetailPage } from '@/features/admin/course-detail-page';
+import { UsersPage } from '@/features/admin/users-page';
 import { AppShell } from '@/features/app-shell/app-shell';
 import { authReady } from '@/features/auth/auth-provider';
 import { ForgotPasswordPage } from '@/features/auth/forgot-password-page';
@@ -145,6 +146,7 @@ const adminLayoutRoute = createRoute({
   component: AdminShell,
 });
 const adminIndexRoute = createRoute({ getParentRoute: () => adminLayoutRoute, path: '/admin', component: AdminPage });
+const adminUsersRoute = createRoute({ getParentRoute: () => adminLayoutRoute, path: '/admin/users', component: UsersPage });
 const adminCourseRoute = createRoute({
   getParentRoute: () => adminLayoutRoute,
   path: '/admin/courses/$courseId/$versionId',
@@ -187,7 +189,7 @@ const routeTree = rootRoute.addChildren([
   registerRoute,
   ...legacyRegisterRoutes,
   appRoute.addChildren([homeRoute, coursesRoute, courseRoute, profileRoute]),
-  adminLayoutRoute.addChildren([adminIndexRoute, adminCourseRoute]),
+  adminLayoutRoute.addChildren([adminIndexRoute, adminCourseRoute, adminUsersRoute]),
 ]);
 
 export function createAppRouter(options: { initialPath?: string } = {}) {
