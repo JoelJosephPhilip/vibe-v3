@@ -1,5 +1,5 @@
 import { Link, Outlet, useNavigate } from '@tanstack/react-router';
-import { ArrowLeftIcon, BookOpenIcon, LogOutIcon, MoonIcon, SunIcon, UserIcon } from 'lucide-react';
+import { ArrowLeftIcon, BookOpenIcon, LogOutIcon, MoonIcon, SunIcon, UserIcon, UsersIcon } from 'lucide-react';
 
 import { GeneratedAvatar } from '@/components/generated-art';
 import { useTheme } from '@/components/theme-provider';
@@ -14,7 +14,10 @@ import { useAuth } from '@/features/auth/auth-provider';
 import { Wordmark } from '@/features/landing/wordmark';
 import { cn } from '@/lib/utils';
 
-const NAV = [{ label: 'Courses', to: '/admin' as const, icon: BookOpenIcon }];
+const NAV = [
+  { label: 'Courses', to: '/admin' as const, icon: BookOpenIcon },
+  { label: 'Users', to: '/admin/users' as const, icon: UsersIcon },
+];
 
 /** Separate chrome from the student AppShell - admin's own nav, not Home/My courses/Profile. */
 export function AdminShell() {
