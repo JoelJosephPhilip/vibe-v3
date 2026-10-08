@@ -15,6 +15,7 @@ import {
   Authorized,
   CurrentUser,
   QueryParam,
+  ForbiddenError,
 } from 'routing-controllers';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 import {
@@ -88,6 +89,20 @@ export class UserController {
       ...user,
       _id: user._id!.toString(),
     } as User;
+  }
+
+  @OpenAPI({
+    summary: 'List all users (admin only)',
+    description: 'Fetches every user in the system. Admin only.',
+  })
+  @Authorized()
+  @Get('/')
+  @HttpCode(200)
+  async listAllUsers(@CurrentUser({ required: true }) user: IUser) {
+    if (user.roles !== 'admin') {
+      throw new ForbiddenError('Only admins can list all users');
+    }
+    return { users: await this.userService.listAllUsers() };
   }
 
   @OpenAPI({
