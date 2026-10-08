@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/features/auth/auth-provider';
 import { useCurrentUserProfile } from '@/features/admin/queries';
+import { NotificationBell } from '@/features/notifications/notification-bell';
 import { Wordmark } from '@/features/landing/wordmark';
 import { cn } from '@/lib/utils';
 
@@ -92,7 +93,8 @@ export function AppShell() {
           <Link to="/home" aria-label="ViBe home" className="md:hidden">
             <Wordmark />
           </Link>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-1">
+            <NotificationBell />
             <AccountMenu />
           </div>
         </header>
