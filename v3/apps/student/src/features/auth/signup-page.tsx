@@ -22,7 +22,7 @@ export const PASSWORD_RULES = [
 /** Backend rule: names may only contain letters and spaces. */
 export const NAME_PATTERN = /^[A-Za-z ]+$/;
 
-export function SignupPage() {
+export function SignupPage({ redirect }: { redirect?: string } = {}) {
   const { signUp, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
   const [step, setStep] = useState<'details' | 'password'>('details');
@@ -52,7 +52,7 @@ export function SignupPage() {
     setPending('email');
     try {
       await signUp({ ...splitName(fullName), email: email.trim(), password });
-      await navigate({ to: '/onboarding', replace: true });
+      await navigate({ to: '/onboarding', search: { redirect }, replace: true });
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -65,7 +65,9 @@ export function SignupPage() {
     setPending('google');
     try {
       const { isNewUser } = await signInWithGoogle();
-      await navigate({ to: isNewUser ? '/onboarding' : '/home', replace: true });
+      await (isNewUser
+        ? navigate({ to: '/onboarding', search: { redirect }, replace: true })
+        : navigate({ to: redirect ?? '/home', replace: true }));
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -76,7 +78,7 @@ export function SignupPage() {
   const loginFooter = (
     <>
       Already have an account?{' '}
-      <Link to="/login" className="font-medium text-foreground hover:underline">
+      <Link to="/login" search={{ redirect }} className="font-medium text-foreground hover:underline">
         Log in
       </Link>
     </>
@@ -108,7 +110,7 @@ export function SignupPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 aria-describedby="password-rules"
-                className="h-10 pr-10"
+                className="h-11 pr-10 sm:h-10"
               />
               <button
                 type="button"
@@ -159,11 +161,11 @@ export function SignupPage() {
       <form onSubmit={onDetails} className="flex flex-col gap-4" noValidate>
         <div className="flex flex-col gap-2">
           <Label htmlFor="name">Full name</Label>
-          <Input id="name" autoComplete="name" placeholder="Your name" value={fullName} onChange={(e) => setFullName(e.target.value)} className="h-10" />
+          <Input id="name" autoComplete="name" autoCapitalize="words" enterKeyHint="next" placeholder="Your name" value={fullName} onChange={(e) => setFullName(e.target.value)} className="h-11 sm:h-10" />
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="email">Email address</Label>
-          <Input id="email" type="email" autoComplete="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} className="h-10" />
+          <Input id="email" type="email" autoCapitalize="none" spellCheck={false} autoComplete="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} className="h-11 sm:h-10" />
         </div>
 
         <FormError message={error} />

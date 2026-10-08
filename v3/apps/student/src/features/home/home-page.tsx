@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router';
-import { ArrowRightIcon, CheckIcon, CircleDashedIcon, PlusIcon } from 'lucide-react';
+import { ArrowRightIcon, CheckIcon, CircleDashedIcon, ClockIcon, PlusIcon } from 'lucide-react';
 
 import { buttonVariants } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -7,6 +7,7 @@ import { useAuth } from '@/features/auth/auth-provider';
 import { CourseCover, ProgressBar, percentOf } from '@/features/courses/course-ui';
 import { useCurrentPath, useEnrollments, type EnrollmentSummary } from '@/features/courses/queries';
 import { readOnboarding } from '@/features/onboarding/onboarding-state';
+import { usePendingRegistrations } from '@/features/registration/queries';
 import { cn } from '@/lib/utils';
 
 export function HomePage() {
@@ -70,6 +71,7 @@ export function HomePage() {
       </div>
 
       <aside className="flex flex-col gap-4" aria-label="Getting started">
+        <PendingRegistrations />
         <GettingStarted hasCourse={list.length > 0} hasStarted={list.some((e) => percentOf(e) > 0)} uid={user?.uid ?? ''} />
       </aside>
     </div>
@@ -87,7 +89,7 @@ function ResumeCard({ enrollment: e }: { enrollment: EnrollmentSummary }) {
       {/* Uxcel's stacked-card hint that there's more behind this one */}
       <div aria-hidden className="absolute inset-x-4 -bottom-2 h-full rounded-2xl border border-border bg-muted/60" />
       <div className="relative grid gap-5 rounded-2xl border border-border bg-card p-4 shadow-xs sm:grid-cols-[220px_1fr] sm:p-5">
-        <CourseCover name={e.course.name} seed={e.courseId} className="aspect-[4/3] w-full sm:aspect-auto sm:h-full" />
+        <CourseCover name={e.course.name} seed={e.courseId} className="aspect-[2/1] w-full sm:aspect-auto sm:h-full" />
         <div className="flex min-w-0 flex-col">
           <p className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">Course</p>
           <h3 className="mt-1 font-aleo text-xl leading-snug">{e.course.name}</h3>
@@ -147,6 +149,38 @@ function EmptyCourses() {
         </p>
       </div>
     </div>
+  );
+}
+
+/** Registrations still waiting for the course team (from course registration links). */
+function PendingRegistrations() {
+  const pending = usePendingRegistrations();
+  const list = pending.data ?? [];
+  if (!list.length) return null;
+  return (
+    <section aria-labelledby="pending-title" className="rounded-2xl border border-border bg-card p-5">
+      <h2 id="pending-title" className="font-semibold">
+        Waiting for approval
+      </h2>
+      <p className="mt-1 text-sm text-muted-foreground">Your course team will review these registrations.</p>
+      <ul className="mt-4 flex flex-col gap-2">
+        {list.map((r) => (
+          <li key={r._id}>
+            <Link
+              to="/register/$versionId/{-$cohortId}"
+              params={{ versionId: r.versionId, cohortId: r.cohortId ?? undefined }}
+              className="flex items-center gap-3 rounded-lg border border-border px-3 py-2.5 text-sm hover:bg-muted"
+            >
+              <span className="grid size-7 shrink-0 place-items-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400">
+                <ClockIcon className="size-3.5" aria-hidden />
+              </span>
+              <span className="line-clamp-2 min-w-0 flex-1">{r.courseName}</span>
+              <span className="shrink-0 text-xs text-muted-foreground">Pending</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

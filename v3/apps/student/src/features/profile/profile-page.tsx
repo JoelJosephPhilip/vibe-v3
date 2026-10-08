@@ -17,7 +17,7 @@ import { cn } from '@/lib/utils';
 
 function Panel({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
   return (
-    <section className="grid gap-6 border-b border-border py-8 last:border-b-0 md:grid-cols-[240px_1fr]">
+    <section className="grid gap-4 border-b border-border py-6 last:border-b-0 sm:gap-6 sm:py-8 md:grid-cols-[240px_1fr]">
       <div>
         <h2 className="font-semibold">{title}</h2>
         {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
@@ -62,7 +62,7 @@ export function ProfilePage() {
           </Panel>
         )}
         <Panel title="Appearance" description="ViBe uses the light theme unless you choose otherwise.">
-          <div role="radiogroup" aria-label="Theme" className="inline-flex rounded-lg bg-muted p-1">
+          <div role="radiogroup" aria-label="Theme" className="grid grid-cols-2 rounded-lg bg-muted p-1 sm:inline-flex">
             {(['light', 'dark'] as const).map((t) => (
               <button
                 key={t}
@@ -71,7 +71,7 @@ export function ProfilePage() {
                 aria-checked={theme === t}
                 onClick={() => setTheme(t)}
                 className={cn(
-                  'inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium',
+                  'inline-flex items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium sm:py-1.5',
                   theme === t ? 'bg-background shadow-xs' : 'text-muted-foreground hover:text-foreground',
                 )}
               >
@@ -85,6 +85,8 @@ export function ProfilePage() {
           <Button
             type="button"
             variant="outline"
+            size="lg"
+            className="w-full sm:w-auto"
             onClick={async () => {
               await signOut();
               await navigate({ to: '/login', replace: true });
@@ -127,15 +129,15 @@ function NameForm() {
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-2">
           <Label htmlFor="profile-first">First name</Label>
-          <Input id="profile-first" value={first} onChange={(e) => setFirst(e.target.value)} className="h-10" />
+          <Input id="profile-first" autoComplete="given-name" autoCapitalize="words" value={first} onChange={(e) => setFirst(e.target.value)} className="h-11 sm:h-10" />
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="profile-last">Last name</Label>
-          <Input id="profile-last" value={last} onChange={(e) => setLast(e.target.value)} className="h-10" />
+          <Input id="profile-last" autoComplete="family-name" autoCapitalize="words" value={last} onChange={(e) => setLast(e.target.value)} className="h-11 sm:h-10" />
         </div>
       </div>
-      <div className="flex items-center gap-4">
-        <Button type="submit" disabled={state.pending || !first.trim()}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+        <Button type="submit" size="lg" className="w-full sm:w-auto" disabled={state.pending || !first.trim()}>
           {state.pending && <Loader2Icon className="animate-spin" />}
           Save name
         </Button>
@@ -170,11 +172,11 @@ function PasswordForm() {
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
         <Label htmlFor="new-password">New password</Label>
-        <Input id="new-password" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} className="h-10" />
+        <Input id="new-password" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} className="h-11 sm:h-10" />
       </div>
       <div className="flex flex-col gap-2">
         <Label htmlFor="confirm-password">Confirm new password</Label>
-        <Input id="confirm-password" type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} className="h-10" />
+        <Input id="confirm-password" type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} className="h-11 sm:h-10" />
         {confirm && password !== confirm && <p className="text-xs text-destructive">Passwords don’t match.</p>}
       </div>
       <ul className="grid gap-1 sm:grid-cols-2">
@@ -184,8 +186,8 @@ function PasswordForm() {
           </li>
         ))}
       </ul>
-      <div className="flex items-center gap-4">
-        <Button type="submit" disabled={!valid || state.pending}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+        <Button type="submit" size="lg" className="w-full sm:w-auto" disabled={!valid || state.pending}>
           {state.pending && <Loader2Icon className="animate-spin" />}
           Update password
         </Button>

@@ -24,7 +24,7 @@ export function initialsOf(name: string) {
 }
 
 /** Generative cover for a course: marble art seeded by the course id, with its initials. */
-export function GeneratedCover({ seed, title, className }: { seed: string; title: string; className?: string }) {
+export function GeneratedCover({ seed, title, className, compact }: { seed: string; title: string; className?: string; compact?: boolean }) {
   const letters = initialsOf(title);
   return (
     <div aria-hidden className={cn('relative isolate overflow-hidden rounded-xl bg-muted', className)}>
@@ -38,7 +38,12 @@ export function GeneratedCover({ seed, title, className }: { seed: string; title
         className="absolute inset-0 size-full"
       />
       {letters && (
-        <span className="absolute inset-0 grid place-items-center font-aleo text-3xl font-semibold text-white drop-shadow-[0_1px_8px_rgba(0,0,0,0.25)]">
+        <span
+          className={cn(
+            'absolute inset-0 grid place-items-center font-aleo font-semibold text-white drop-shadow-[0_1px_8px_rgba(0,0,0,0.25)]',
+            compact ? 'text-sm' : 'text-3xl',
+          )}
+        >
           {letters}
         </span>
       )}

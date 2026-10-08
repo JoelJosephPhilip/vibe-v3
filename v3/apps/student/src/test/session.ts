@@ -21,11 +21,38 @@ import itemVideo from './fixtures/item-video.json';
 import itemQuiz from './fixtures/item-quiz.json';
 import quizAttempt from './fixtures/quiz-attempt.json';
 import quizSubmit from './fixtures/quiz-submit.json';
+import registrationDetails from './fixtures/registration-details.json';
+import registrationForm from './fixtures/registration-form.json';
+import registrationPending from './fixtures/registration-pending.json';
+import registrationPendingEmpty from './fixtures/registration-pending-empty.json';
+import registrationRejectedEmpty from './fixtures/registration-rejected-empty.json';
+import registrationSubmit from './fixtures/registration-submit.json';
 import modulesProgress from './fixtures/modules-progress.json';
 import percentage from './fixtures/percentage.json';
 import sectionItems from './fixtures/section-items.json';
 
-export const fixtures = { courseSettings, courseVersion, currentPath, enrollments, ethics, face, itemBlog, itemQuiz, itemVideo, modulesProgress, percentage, quizAttempt, quizSubmit, sectionItems };
+export const fixtures = {
+  courseSettings,
+  courseVersion,
+  currentPath,
+  enrollments,
+  ethics,
+  face,
+  itemBlog,
+  itemQuiz,
+  itemVideo,
+  modulesProgress,
+  percentage,
+  quizAttempt,
+  quizSubmit,
+  registrationDetails,
+  registrationForm,
+  registrationPending,
+  registrationPendingEmpty,
+  registrationRejectedEmpty,
+  registrationSubmit,
+  sectionItems,
+};
 
 type FakeUser = { uid: string; email: string; displayName: string | null; providerData: { providerId: string }[]; getIdToken: () => Promise<string>; reload: () => Promise<void> };
 
@@ -107,6 +134,14 @@ function respond(path: string) {
       return ok(fixtures.itemBlog);
     case '/api/setting/course-setting/{courseId}/{versionId}':
       return ok(fixtures.courseSettings);
+    case '/api/course/registration/version/{versionId}':
+      return ok(fixtures.registrationDetails);
+    case '/api/course/registration/form/version/{versionId}':
+      return ok(fixtures.registrationForm);
+    case '/api/course/registration/pending/student':
+      return ok(fixtures.registrationPendingEmpty);
+    case '/api/course/registration/rejected/student':
+      return ok(fixtures.registrationRejectedEmpty);
     default:
       throw new Error(`No test fixture for GET ${path}`);
   }
@@ -117,6 +152,7 @@ function respondPost(path: string) {
   if (path === '/api/users/progress/courses/{courseId}/versions/{versionId}/start') return ok({ watchItemId: 'watch-1' }, 201);
   if (path === '/api/quizzes/{quizId}/attempt') return ok(fixtures.quizAttempt);
   if (path === '/api/quizzes/{quizId}/attempt/{attemptId}/submit') return ok(fixtures.quizSubmit);
+  if (path === '/api/course/registration/version/{versionId}') return ok(fixtures.registrationSubmit, 201);
   return ok({});
 }
 
