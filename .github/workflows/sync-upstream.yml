@@ -1,0 +1,60 @@
+name: Sync upstream
+
+# Keeps this fork's v3 branch current with vicharanashala/vibe's v3 branch.
+# Clean merges (no conflicts) are applied and pushed automatically. Any real
+# conflict is left unresolved on purpose - this workflow aborts and fails
+# loudly rather than guessing, so it shows up as a failed run for a human
+# (or the fork-sync-conflict-triage skill) to look at.
+
+on:
+  schedule:
+    - cron: "0 6 * * *" # daily at 06:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v4
+        with:
+          ref: v3
+          fetch-depth: 0
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Add upstream remote
+        run: git remote add upstream https://github.com/vicharanashala/vibe.git
+
+      - name: Fetch upstream v3
+        run: git fetch upstream v3
+
+      - name: Check how far behind upstream we are
+        id: check
+        run: |
+          behind=$(git rev-list --count HEAD..upstream/v3)
+          echo "behind=$behind" >> "$GITHUB_OUTPUT"
+          echo "Fork is $behind commit(s) behind upstream/v3"
+
+      - name: Attempt merge
+        if: steps.check.outputs.behind != '0'
+        id: merge
+        continue-on-error: true
+        run: git merge upstream/v3 -m "Merge upstream/v3 into v3 (automated sync)"
+
+      - name: Push merged result
+        if: steps.check.outputs.behind != '0' && steps.merge.outcome == 'success'
+        run: git push origin v3
+
+      - name: Abort on conflict and fail the run
+        if: steps.check.outputs.behind != '0' && steps.merge.outcome == 'failure'
+        run: |
+          git merge --abort
+          echo "::error::Automated upstream sync hit a real merge conflict and was aborted (nothing pushed). This needs manual triage - see the fork-sync-conflict-triage skill in CLAUDE.md."
+          exit 1
