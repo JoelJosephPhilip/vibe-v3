@@ -8,6 +8,7 @@ import {
   redirect,
 } from '@tanstack/react-router';
 
+import { AdminPage } from '@/features/admin/admin-page';
 import { AppShell } from '@/features/app-shell/app-shell';
 import { authReady } from '@/features/auth/auth-provider';
 import { ForgotPasswordPage } from '@/features/auth/forgot-password-page';
@@ -129,6 +130,8 @@ const courseRoute = createRoute({
   },
 });
 const profileRoute = createRoute({ getParentRoute: () => appRoute, path: '/profile', component: ProfilePage });
+/** Role check happens inside AdminPage itself (needs the user's Mongo profile, not just Firebase auth). */
+const adminRoute = createRoute({ getParentRoute: () => appRoute, path: '/admin', component: AdminPage });
 
 /** The registration link instructors share. Needs an account (every registration API does). */
 const registerRoute = createRoute({
@@ -162,7 +165,7 @@ const routeTree = rootRoute.addChildren([
   learnRoute,
   registerRoute,
   ...legacyRegisterRoutes,
-  appRoute.addChildren([homeRoute, coursesRoute, courseRoute, profileRoute]),
+  appRoute.addChildren([homeRoute, coursesRoute, courseRoute, profileRoute, adminRoute]),
 ]);
 
 export function createAppRouter(options: { initialPath?: string } = {}) {
