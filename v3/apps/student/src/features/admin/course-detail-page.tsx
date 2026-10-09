@@ -29,7 +29,7 @@ import {
   useDeleteItem,
   useDeleteModule,
   useDeleteSection,
-  useInviteInstructor,
+  useInviteUser,
   useItemDetail,
   useUpdateItem,
   useUpdateModule,
@@ -111,9 +111,9 @@ export function CourseDetailPage({ courseId, versionId }: { courseId: string; ve
       </section>
 
       <section className="mt-8">
-        <h2 className="font-semibold">Invite an instructor</h2>
+        <h2 className="font-semibold">Invite someone</h2>
         <div className="mt-4 max-w-sm">
-          <InviteInstructorForm courseId={courseId} versionId={versionId} />
+          <InviteUserForm courseId={courseId} versionId={versionId} />
         </div>
       </section>
     </div>
@@ -631,28 +631,43 @@ function EnrollmentsTable({ courseId, versionId }: { courseId: string; versionId
   );
 }
 
-function InviteInstructorForm({ courseId, versionId }: { courseId: string; versionId: string }) {
-  const invite = useInviteInstructor();
+function InviteUserForm({ courseId, versionId }: { courseId: string; versionId: string }) {
+  const invite = useInviteUser();
   const [email, setEmail] = useState('');
+  const [role, setRole] = useState<'STUDENT' | 'INSTRUCTOR'>('STUDENT');
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
-    invite.mutate({ courseId, versionId, email }, { onSuccess: () => setEmail('') });
+    invite.mutate({ courseId, versionId, email, role }, { onSuccess: () => setEmail('') });
   }
 
   return (
-    <form onSubmit={onSubmit} className="flex items-end gap-2">
-      <div className="grid flex-1 gap-1.5">
-        <Label htmlFor="invite-email" className="text-xs">
-          Email
-        </Label>
-        <Input id="invite-email" type="email" placeholder="instructor@vibe.local" value={email} onChange={(e) => setEmail(e.target.value)} required />
+    <form onSubmit={onSubmit} className="grid gap-2">
+      <div className="flex gap-1">
+        {(['STUDENT', 'INSTRUCTOR'] as const).map((r) => (
+          <button
+            key={r}
+            type="button"
+            onClick={() => setRole(r)}
+            className={cn('rounded-md px-2 py-1 text-xs', role === r ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}
+          >
+            {r}
+          </button>
+        ))}
       </div>
-      <Button type="submit" variant="outline" disabled={invite.isPending}>
-        {invite.isPending ? <Loader2Icon className="size-4 animate-spin" aria-hidden /> : <SendIcon className="size-4" aria-hidden />}
-        Invite
-      </Button>
-      {invite.isSuccess && <Status kind="ok">Invited.</Status>}
+      <div className="flex items-end gap-2">
+        <div className="grid flex-1 gap-1.5">
+          <Label htmlFor="invite-email" className="text-xs">
+            Email
+          </Label>
+          <Input id="invite-email" type="email" placeholder="student@vibe.local" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        </div>
+        <Button type="submit" variant="outline" disabled={invite.isPending}>
+          {invite.isPending ? <Loader2Icon className="size-4 animate-spin" aria-hidden /> : <SendIcon className="size-4" aria-hidden />}
+          Invite
+        </Button>
+      </div>
+      {invite.isSuccess && <Status kind="ok">Invited as {role.toLowerCase()}.</Status>}
       {invite.isError && <Status kind="error">{errorMessage(invite.error)}</Status>}
     </form>
   );

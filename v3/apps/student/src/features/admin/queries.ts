@@ -71,19 +71,20 @@ export function useCreateCourse() {
   });
 }
 
-export interface InviteInstructorInput {
+export interface InviteUserInput {
   courseId: string;
   versionId: string;
   email: string;
+  role: 'STUDENT' | 'INSTRUCTOR';
 }
 
-export function useInviteInstructor() {
+export function useInviteUser() {
   return useMutation({
-    mutationFn: async ({ courseId, versionId, email }: InviteInstructorInput) =>
+    mutationFn: async ({ courseId, versionId, email, role }: InviteUserInput) =>
       unwrap(
         await api.POST('/api/notifications/invite/courses/{courseId}/versions/{versionId}', {
           params: { path: { courseId, versionId } },
-          body: { inviteData: [{ email, role: 'INSTRUCTOR' }] },
+          body: { inviteData: [{ email, role }] },
         }),
       ) as unknown as { invites: { inviteId: string; email: string; inviteStatus: string }[] },
   });
