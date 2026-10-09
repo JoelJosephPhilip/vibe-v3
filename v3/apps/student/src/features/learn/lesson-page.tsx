@@ -129,49 +129,62 @@ export function LessonPage({ track, ...ref }: LessonProps) {
  */
 function GreenGate({ lessonRef: ref, item, progress }: { lessonRef: LessonRef; item: LessonItem; progress: number }) {
   const path = useCurrentPath(ref.courseId, ref.versionId);
-  if (path.isPending) return <LessonFrame lessonRef={ref} track="green" title={item.name} progress={progress}><Skeleton className="mx-auto mt-10 h-64 w-full max-w-3xl" /></LessonFrame>;
   const isCurrent = path.data?.item?.id === ref.itemId;
-  if (!item.isAlreadyWatched && path.data?.item && !isCurrent) {
+  const isLocked = !path.isPending && !item.isAlreadyWatched && !!path.data?.item && !isCurrent;
+  // Hooks must run unconditionally — don't gate this call behind the early
+  // returns below. Instead it takes its own `enabled` flag, so a lesson that's
+  // still loading or locked never opens the camera for content it isn't showing.
+  const { blocked, overlay } = useProctoring(item.proctoringDetectors, ref.courseId, ref.versionId, !path.isPending && !isLocked);
+
+  if (path.isPending) return <LessonFrame lessonRef={ref} track="green" title={item.name} progress={progress}><Skeleton className="mx-auto mt-10 h-64 w-full max-w-3xl" /></LessonFrame>;
+  if (isLocked) {
     return (
       <LessonFrame lessonRef={ref} track="green" title={item.name} progress={progress}>
         <LockedLesson lessonRef={ref} track="green" />
       </LessonFrame>
     );
   }
+
   return (
-    <ProctoringEnforcement detectors={item.proctoringDetectors} courseId={ref.courseId} versionId={ref.versionId}>
-      {item.type === 'QUIZ' ? (
-        <GreenQuiz lessonRef={ref} item={item} progress={progress} />
-      ) : (
-        <GreenLesson lessonRef={ref} item={item} progress={progress} />
-      )}
-    </ProctoringEnforcement>
+    <>
+      {/* blocked only dims/disables interaction here — it does NOT stop playback on
+          its own. Video pausing is wired explicitly (GreenLesson's `paused={blocked}`)
+          precisely so a blocked lesson can't just keep playing to completion behind
+          the overlay. */}
+      <div className={cn(blocked && 'pointer-events-none select-none blur-sm')} aria-hidden={blocked}>
+        {item.type === 'QUIZ' ? (
+          <GreenQuiz lessonRef={ref} item={item} progress={progress} />
+        ) : (
+          <GreenLesson lessonRef={ref} item={item} progress={progress} blocked={blocked} />
+        )}
+      </div>
+      {overlay}
+    </>
   );
 }
 
 /**
  * Runs every proctoring detector this build supports for the duration of a
  * green-track lesson. Detectors not in SUPPORTED_DETECTORS (queries.ts) never
- * reach here — the caller already blocked the lesson for those.
+ * reach here — the caller already blocked the lesson for those. Returns
+ * `blocked` (so the caller can both dim the UI and actually pause playback)
+ * and `overlay` (the camera bubble / block notices / enrollment dialog to
+ * render alongside, not inside, the dimmed content).
  */
-function ProctoringEnforcement({
-  detectors,
-  courseId,
-  versionId,
-  children,
-}: {
-  detectors?: DetectorSetting[];
-  courseId: string;
-  versionId: string;
-  children: ReactNode;
-}) {
-  const needsCamera = isDetectorEnabled(detectors, 'cameraMic');
-  const needsRightClickBlock = isDetectorEnabled(detectors, 'rightClickDisabled');
-  const needsBlur = isDetectorEnabled(detectors, 'blurDetection');
-  const needsGesture = isDetectorEnabled(detectors, 'handGestureDetection');
-  const needsVoice = isDetectorEnabled(detectors, 'voiceDetection');
-  const needsFaceCount = isDetectorEnabled(detectors, 'faceCountDetection');
-  const needsFaceRecognition = isDetectorEnabled(detectors, 'faceRecognition');
+function useProctoring(
+  detectors: DetectorSetting[] | undefined,
+  courseId: string,
+  versionId: string,
+  /** False while the lesson itself isn't being shown yet (still loading / locked) — no camera prompt for content the student can't see. */
+  enabled: boolean,
+): { blocked: boolean; overlay: ReactNode } {
+  const needsCamera = enabled && isDetectorEnabled(detectors, 'cameraMic');
+  const needsRightClickBlock = enabled && isDetectorEnabled(detectors, 'rightClickDisabled');
+  const needsBlur = enabled && isDetectorEnabled(detectors, 'blurDetection');
+  const needsGesture = enabled && isDetectorEnabled(detectors, 'handGestureDetection');
+  const needsVoice = enabled && isDetectorEnabled(detectors, 'voiceDetection');
+  const needsFaceCount = enabled && isDetectorEnabled(detectors, 'faceCountDetection');
+  const needsFaceRecognition = enabled && isDetectorEnabled(detectors, 'faceRecognition');
   // Every detector below needs a live camera feed to analyse, even on courses
   // that didn't separately turn the cameraMic detector on.
   const needsCameraStream = needsCamera || needsBlur || needsGesture || needsVoice || needsFaceCount || needsFaceRecognition;
@@ -248,11 +261,8 @@ function ProctoringEnforcement({
 
   const blocked = (needsCameraStream && !cameraReady) || showEnrollment || blockNotice !== null;
 
-  return (
+  const overlay = (
     <>
-      <div className={cn(blocked && 'pointer-events-none select-none blur-sm')} aria-hidden={blocked}>
-        {children}
-      </div>
       {needsCameraStream && (
         <>
           {/* eslint-disable-next-line jsx-a11y/media-has-caption -- hidden frame source for detectors, not a media player */}
@@ -288,6 +298,8 @@ function ProctoringEnforcement({
       )}
     </>
   );
+
+  return { blocked, overlay };
 }
 
 /** Full-screen notice for a proctoring block that isn't "camera is off" (that's CameraRequired). */
@@ -385,7 +397,18 @@ function GreenQuiz({ lessonRef: ref, item, progress }: { lessonRef: LessonRef; i
   );
 }
 
-function GreenLesson({ lessonRef: ref, item, progress }: { lessonRef: LessonRef; item: LessonItem; progress: number }) {
+function GreenLesson({
+  lessonRef: ref,
+  item,
+  progress,
+  blocked,
+}: {
+  lessonRef: LessonRef;
+  item: LessonItem;
+  progress: number;
+  /** A proctoring violation is in effect — actually pause the video (not just dim it) and stop counting watch time. */
+  blocked: boolean;
+}) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const settings = useCourseSettings(ref.courseId, ref.versionId);
@@ -412,8 +435,9 @@ function GreenLesson({ lessonRef: ref, item, progress }: { lessonRef: LessonRef;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ref.itemId, alreadyDone]);
 
-  // Keep it alive: readings while the tab is visible, videos while playing.
-  const active = item.type === 'VIDEO' ? playing : true;
+  // Keep it alive: readings while the tab is visible, videos while playing — in
+  // either case, never while a proctoring violation is blocking the lesson.
+  const active = !blocked && (item.type === 'VIDEO' ? playing : true);
   useEffect(() => {
     if (!active || alreadyDone) return;
     const id = window.setInterval(() => {
@@ -495,6 +519,7 @@ function GreenLesson({ lessonRef: ref, item, progress }: { lessonRef: LessonRef;
       <LessonContent
         item={item}
         allowSeekForward={(settings.data?.settings.seekForwardEnabled ?? false) || alreadyDone}
+        paused={blocked}
         onPlayingChange={setPlaying}
         onEnded={() => setVideoEnded(true)}
       />
