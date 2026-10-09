@@ -27,13 +27,15 @@ import { CameraBubble, CameraRequired, useCameraPresence } from './camera-presen
 import { ConsentGate } from './consent-gate';
 import {
   heartbeat,
-  isProctored,
+  isDetectorEnabled,
   startItem,
   toSeconds,
+  unsupportedDetectors,
   useCompleteItem,
   useCourseSettings,
   useLesson,
   youtubeId,
+  type DetectorSetting,
   type LessonItem,
   type LessonRef,
 } from './queries';
@@ -99,12 +101,14 @@ export function LessonPage({ track, ...ref }: LessonProps) {
 
   if (track === 'blue') return <BlueLesson key={ref.itemId} lessonRef={ref} item={item} progress={progress} />;
 
-  // Green: never run a proctored lesson without its proctoring (engine is ported next).
-  if (isProctored(item.proctoringDetectors)) {
+  // Green: never run a proctored lesson without every one of its enabled detectors
+  // (more are ported over time; see SUPPORTED_DETECTORS in queries.ts).
+  const unsupported = unsupportedDetectors(item.proctoringDetectors);
+  if (unsupported.length > 0) {
     return frame(
       <Notice title="This lesson is proctored" icon={<ShieldAlertIcon className="size-6" aria-hidden />} lessonRef={ref}>
-        Proctored lessons need the camera-based integrity checks, which aren’t available in this version of the app yet.
-        You can still study it on the blue track.
+        This lesson requires {unsupported.length === 1 ? 'a check' : 'checks'} ({unsupported.map((d) => d.detectorName).join(', ')}) that{' '}
+        {unsupported.length === 1 ? "isn't" : "aren't"} available in this version of the app yet. You can still study it on the blue track.
       </Notice>,
     );
   }
@@ -126,8 +130,53 @@ function GreenGate({ lessonRef: ref, item, progress }: { lessonRef: LessonRef; i
       </LessonFrame>
     );
   }
-  if (item.type === 'QUIZ') return <GreenQuiz lessonRef={ref} item={item} progress={progress} />;
-  return <GreenLesson lessonRef={ref} item={item} progress={progress} />;
+  return (
+    <ProctoringEnforcement detectors={item.proctoringDetectors}>
+      {item.type === 'QUIZ' ? (
+        <GreenQuiz lessonRef={ref} item={item} progress={progress} />
+      ) : (
+        <GreenLesson lessonRef={ref} item={item} progress={progress} />
+      )}
+    </ProctoringEnforcement>
+  );
+}
+
+/**
+ * Runs the proctoring detectors this build supports (cameraMic, rightClickDisabled)
+ * for the duration of a green-track lesson. Detectors not in SUPPORTED_DETECTORS
+ * never reach here — the caller already blocked the lesson for those.
+ */
+function ProctoringEnforcement({ detectors, children }: { detectors?: DetectorSetting[]; children: ReactNode }) {
+  const needsCamera = isDetectorEnabled(detectors, 'cameraMic');
+  const needsRightClickBlock = isDetectorEnabled(detectors, 'rightClickDisabled');
+  const camera = useCameraPresence({ audio: true, enabled: needsCamera });
+
+  useEffect(() => {
+    if (!needsRightClickBlock) return;
+    const onContextMenu = (e: MouseEvent) => e.preventDefault();
+    document.addEventListener('contextmenu', onContextMenu);
+    return () => document.removeEventListener('contextmenu', onContextMenu);
+  }, [needsRightClickBlock]);
+
+  const blocked = needsCamera && camera.state !== 'on';
+
+  return (
+    <>
+      <div className={cn(blocked && 'pointer-events-none select-none blur-sm')} aria-hidden={blocked}>
+        {children}
+      </div>
+      {needsCamera && (
+        <>
+          <CameraBubble stream={camera.stream} />
+          <CameraRequired
+            state={camera.state}
+            onRetry={camera.retry}
+            idleHint="This lesson is proctored and needs your camera and microphone on. Nothing is recorded or sent anywhere."
+          />
+        </>
+      )}
+    </>
+  );
 }
 
 /** Opens the next lesson the backend's progress points to (or the course page when done). */
@@ -366,7 +415,11 @@ function BlueLesson({ lessonRef: ref, item, progress }: { lessonRef: LessonRef; 
         <LessonContent item={item} allowSeekForward paused={blocked} />
       </div>
       <CameraBubble stream={camera.stream} />
-      <CameraRequired state={camera.state} onRetry={camera.retry} />
+      <CameraRequired
+        state={camera.state}
+        onRetry={camera.retry}
+        idleHint="The blue track only needs your camera on. Nothing is recorded or analysed."
+      />
     </LessonFrame>
   );
 }
