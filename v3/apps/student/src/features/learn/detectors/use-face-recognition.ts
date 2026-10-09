@@ -36,6 +36,14 @@ export function loadFaceModels(): Promise<void> {
  * GET /users/me/face-reference) every second, via face-api.js. Requires
  * REQUIRED_MATCHES/REQUIRED_MISMATCHES consecutive results before flipping
  * status, so one bad frame doesn't flap the UI.
+ *
+ * Crucially, a tick where no face was confidently detected is NOT evidence of
+ * a mismatch — glancing at the lesson content instead of the camera, a blink,
+ * a moment of motion blur, all routinely drop below the detector's confidence
+ * threshold for a frame or two. Once matched, only a face that's actually
+ * *there* and doesn't match downgrades the status; absence just leaves it as
+ * the student left it. (Whether someone is in frame at all is faceCountDetection's
+ * job, not this hook's — see its own blocking notice in lesson-page.tsx.)
  */
 export function useFaceRecognition(
   videoRef: RefObject<HTMLVideoElement | null>,
@@ -45,6 +53,7 @@ export function useFaceRecognition(
   const [status, setStatus] = useState<FaceRecognitionStatus>('loading');
   const matchStreak = useRef(0);
   const mismatchStreak = useRef(0);
+  const hasMatchedOnce = useRef(false);
   const processingRef = useRef(false);
 
   useEffect(() => {
@@ -52,6 +61,7 @@ export function useFaceRecognition(
       setStatus('loading');
       matchStreak.current = 0;
       mismatchStreak.current = 0;
+      hasMatchedOnce.current = false;
       return;
     }
 
@@ -71,9 +81,11 @@ export function useFaceRecognition(
           .withFaceDescriptor();
 
         if (!detection?.descriptor || detection.descriptor.length !== FACE_EMBEDDING_LENGTH) {
+          // No confident detection this tick — not proof of anything. Only
+          // surface it as "checking" before the very first real match; after
+          // that, hold the last confirmed status.
           matchStreak.current = 0;
-          mismatchStreak.current = 0;
-          setStatus('no-face');
+          if (!hasMatchedOnce.current) setStatus('no-face');
           return;
         }
 
@@ -81,7 +93,10 @@ export function useFaceRecognition(
         if (distance < MATCH_THRESHOLD) {
           matchStreak.current += 1;
           mismatchStreak.current = 0;
-          if (matchStreak.current >= REQUIRED_MATCHES) setStatus('matched');
+          if (matchStreak.current >= REQUIRED_MATCHES) {
+            hasMatchedOnce.current = true;
+            setStatus('matched');
+          }
         } else {
           mismatchStreak.current += 1;
           matchStreak.current = 0;
