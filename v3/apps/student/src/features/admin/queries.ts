@@ -4,6 +4,7 @@ import { unwrap } from '@vibe/api';
 import { api } from '@/lib/api';
 import { toId } from '@/features/learn/quiz-api';
 import { courseKeys } from '@/features/courses/queries';
+import { learnKeys, type DetectorSetting } from '@/features/learn/queries';
 
 /** Shape follows what GET /users/me actually returns (same fields as the Mongo user doc). */
 export interface CurrentUserProfile {
@@ -377,5 +378,30 @@ export function useCourseEnrollments(courseId: string, versionId: string) {
       return raw.enrollments;
     },
     enabled: !!courseId && !!versionId,
+  });
+}
+
+/**
+ * The write side of course-setting/proctoring. The backend's body also carries
+ * several unrelated settings (hpSystem, isPublic, caseStudies*, etc.) that this
+ * feature never reads or edits — callers should spread the full object read via
+ * `useCourseSettings` and only override `detectors` (see course-detail-page.tsx),
+ * so those are round-tripped untouched rather than silently reset. The generated
+ * OpenAPI type for this body is degraded (detectors/settings lose their real
+ * shape), so it's cast at the call site here, same as useUpdateItem above.
+ */
+export function useUpdateCourseSettings(courseId: string, versionId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: Record<string, unknown> & { detectors: DetectorSetting[] }) =>
+      unwrap(
+        await api.PUT('/api/setting/course-setting/{courseId}/{versionId}/proctoring', {
+          params: { path: { courseId, versionId } },
+          body: body as any,
+        }),
+      ) as unknown as { success: boolean },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: learnKeys.settings(courseId, versionId) });
+    },
   });
 }
