@@ -16,6 +16,7 @@ import {
   courseKeys,
   useCourseVersion,
   useCurrentPath,
+  useEnrollments,
   useEthicsConsent,
   useFaceReference,
   useProgressPercentage,
@@ -63,6 +64,12 @@ export function LessonPage({ track, ...ref }: LessonProps) {
   const lesson = useLesson(ref);
   const consent = useEthicsConsent(ref.courseId, ref.versionId);
   const percentage = useProgressPercentage(ref.courseId, ref.versionId);
+  // The green track saves certified progress, which only exists for STUDENT
+  // enrollments (the backend never creates a Progress record for any other
+  // role) — an instructor opening a green lesson hit a raw "Progress not
+  // found" 404 the moment it tried to start the item.
+  const enrollments = useEnrollments('active');
+  const enrollmentRole = enrollments.data?.enrollments.find((e) => e.courseVersionId === ref.versionId)?.role;
   const [, rememberTrack] = useCourseTrack(ref.versionId);
   useEffect(() => rememberTrack(track), [track, rememberTrack]);
 
@@ -73,7 +80,7 @@ export function LessonPage({ track, ...ref }: LessonProps) {
     </LessonFrame>
   );
 
-  if (lesson.isPending || consent.isPending) {
+  if (lesson.isPending || consent.isPending || enrollments.isPending) {
     return frame(
       <div className="mx-auto w-full max-w-3xl space-y-4 px-4 py-10">
         <Skeleton className="h-8 w-1/2" />
@@ -108,6 +115,17 @@ export function LessonPage({ track, ...ref }: LessonProps) {
   }
 
   if (track === 'blue') return <BlueLesson key={ref.itemId} lessonRef={ref} item={item} progress={progress} />;
+
+  // Green track tracks certified progress, which doesn't exist for a non-student
+  // enrollment (e.g. an instructor) — only the blue track (no progress saved) works for them.
+  if (enrollmentRole && enrollmentRole !== 'STUDENT') {
+    return frame(
+      <Notice title="Certified progress isn’t available here" lessonRef={ref}>
+        You’re enrolled on this course as {enrollmentRole.toLowerCase()}, not a student, so the green track’s progress tracking doesn’t apply to
+        you. Switch to the blue track to study this lesson.
+      </Notice>,
+    );
+  }
 
   // Green: never run a proctored lesson without every one of its enabled detectors
   // (more are ported over time; see SUPPORTED_DETECTORS in queries.ts).
