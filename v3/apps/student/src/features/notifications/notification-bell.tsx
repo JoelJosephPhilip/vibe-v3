@@ -7,12 +7,22 @@ import {
   ClockIcon,
   InfoIcon,
   Loader2Icon,
+  MailPlusIcon,
+  type LucideIcon,
 } from 'lucide-react';
-import { useEffect, useRef, useState, type LucideIcon } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { cn } from '@/lib/utils';
 
-import { useMarkAllNotificationsRead, useMarkNotificationRead, useNotifications, type Notification } from './queries';
+import {
+  useAcceptInvite,
+  useMarkAllNotificationsRead,
+  useMarkNotificationRead,
+  useNotifications,
+  usePendingInvites,
+  type Notification,
+  type PendingInvite,
+} from './queries';
 
 const TYPE_ICON: Record<string, { icon: LucideIcon; className: string }> = {
   ejection: { icon: AlertTriangleIcon, className: 'text-destructive' },
@@ -38,6 +48,8 @@ export function NotificationBell() {
   const notifications = useNotifications();
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllNotificationsRead();
+  const pendingInvites = usePendingInvites();
+  const acceptInvite = useAcceptInvite();
 
   useEffect(() => {
     if (!open) return;
@@ -55,7 +67,8 @@ export function NotificationBell() {
     };
   }, [open]);
 
-  const unreadCount = notifications.data?.unreadCount ?? 0;
+  const inviteCount = pendingInvites.data?.length ?? 0;
+  const unreadCount = (notifications.data?.unreadCount ?? 0) + inviteCount;
 
   return (
     <div ref={containerRef} className="relative">
@@ -91,15 +104,57 @@ export function NotificationBell() {
           </div>
 
           <div className="max-h-96 overflow-y-auto">
+            {pendingInvites.data?.map((invite) => (
+              <InviteRow
+                key={invite.inviteId}
+                invite={invite}
+                onAccept={() => acceptInvite.mutate(invite.inviteId)}
+                accepting={acceptInvite.isPending && acceptInvite.variables === invite.inviteId}
+              />
+            ))}
             {notifications.isPending && <p className="p-4 text-center text-sm text-muted-foreground">Loading…</p>}
             {notifications.isError && <p className="p-4 text-center text-sm text-destructive">Couldn't load notifications.</p>}
-            {notifications.data?.notifications.length === 0 && <p className="p-4 text-center text-sm text-muted-foreground">No notifications yet.</p>}
+            {inviteCount === 0 && notifications.data?.notifications.length === 0 && (
+              <p className="p-4 text-center text-sm text-muted-foreground">No notifications yet.</p>
+            )}
             {notifications.data?.notifications.map((n) => (
               <NotificationRow key={n._id} notification={n} onMarkRead={() => markRead.mutate(n._id)} />
             ))}
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function InviteRow({
+  invite,
+  onAccept,
+  accepting,
+}: {
+  invite: PendingInvite;
+  onAccept: () => void;
+  accepting: boolean;
+}) {
+  return (
+    <div className="flex gap-2.5 border-b border-border bg-primary/5 px-3 py-2.5 text-left">
+      <MailPlusIcon className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium">Course invite</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          You've been invited as {invite.role.toLowerCase()} to{' '}
+          <span className="font-medium text-foreground">{invite.course?.name ?? 'a course'}</span>
+        </p>
+        <button
+          type="button"
+          onClick={onAccept}
+          disabled={accepting}
+          className="mt-2 inline-flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+        >
+          {accepting && <Loader2Icon className="size-3 animate-spin" aria-hidden />}
+          Accept
+        </button>
+      </div>
     </div>
   );
 }

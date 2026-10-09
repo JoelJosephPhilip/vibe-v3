@@ -110,13 +110,30 @@ export const courseKeys = {
 export function useEnrollments(tab: 'active' | 'archived' = 'active', search = '') {
   return useQuery({
     queryKey: courseKeys.enrollments(tab, search),
-    queryFn: async () =>
-      unwrap(
-        await api.GET('/api/users/enrollments', {
-          // `role` is required by the backend's EnrollmentFilterQuery.
-          params: { query: { page: 1, limit: 50, role: 'STUDENT', tab, search } },
-        }),
-      ) as unknown as EnrollmentPage,
+    queryFn: async () => {
+      // `role` is required by the backend's EnrollmentFilterQuery - there's no "all
+      // roles" option, so a user enrolled as INSTRUCTOR (e.g. via an admin invite)
+      // was invisible here when only STUDENT was queried. This app only ever creates
+      // STUDENT or INSTRUCTOR enrollments, so fetch both and merge.
+      const [student, instructor] = await Promise.all(
+        (['STUDENT', 'INSTRUCTOR'] as const).map(
+          async (role) =>
+            unwrap(
+              await api.GET('/api/users/enrollments', {
+                params: { query: { page: 1, limit: 50, role, tab, search } },
+              }),
+            ) as unknown as EnrollmentPage,
+        ),
+      );
+      return {
+        enrollments: [...student.enrollments, ...instructor.enrollments],
+        totalDocuments: student.totalDocuments + instructor.totalDocuments,
+        totalPages: Math.max(student.totalPages, instructor.totalPages),
+        currentPage: 1,
+        activeCount: student.activeCount + instructor.activeCount,
+        archivedCount: student.archivedCount + instructor.archivedCount,
+      } satisfies EnrollmentPage;
+    },
   });
 }
 
