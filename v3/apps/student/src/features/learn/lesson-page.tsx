@@ -17,6 +17,7 @@ import {
   useCourseVersion,
   useCurrentPath,
   useEthicsConsent,
+  useFaceReference,
   useProgressPercentage,
   type CurrentPath,
 } from '@/features/courses/queries';
@@ -26,8 +27,12 @@ import { cn } from '@/lib/utils';
 import { CameraBubble, CameraRequired, useCameraPresence } from './camera-presence';
 import { ConsentGate } from './consent-gate';
 import { useBlurDetector } from './detectors/use-blur-detector';
+import { FaceEnrollment } from './detectors/face-enrollment';
+import { useFaceCountDetector } from './detectors/use-face-count-detector';
+import { useFaceRecognition } from './detectors/use-face-recognition';
 import { useGestureDetector } from './detectors/use-gesture-detector';
 import { useThumbsUpChallenge } from './detectors/use-thumbs-up-challenge';
+import { useVoiceDetector } from './detectors/use-voice-detector';
 import {
   heartbeat,
   isDetectorEnabled,
@@ -134,7 +139,7 @@ function GreenGate({ lessonRef: ref, item, progress }: { lessonRef: LessonRef; i
     );
   }
   return (
-    <ProctoringEnforcement detectors={item.proctoringDetectors}>
+    <ProctoringEnforcement detectors={item.proctoringDetectors} courseId={ref.courseId} versionId={ref.versionId}>
       {item.type === 'QUIZ' ? (
         <GreenQuiz lessonRef={ref} item={item} progress={progress} />
       ) : (
@@ -145,18 +150,31 @@ function GreenGate({ lessonRef: ref, item, progress }: { lessonRef: LessonRef; i
 }
 
 /**
- * Runs the proctoring detectors this build supports (cameraMic, rightClickDisabled)
- * for the duration of a green-track lesson. Detectors not in SUPPORTED_DETECTORS
- * never reach here — the caller already blocked the lesson for those.
+ * Runs every proctoring detector this build supports for the duration of a
+ * green-track lesson. Detectors not in SUPPORTED_DETECTORS (queries.ts) never
+ * reach here — the caller already blocked the lesson for those.
  */
-function ProctoringEnforcement({ detectors, children }: { detectors?: DetectorSetting[]; children: ReactNode }) {
+function ProctoringEnforcement({
+  detectors,
+  courseId,
+  versionId,
+  children,
+}: {
+  detectors?: DetectorSetting[];
+  courseId: string;
+  versionId: string;
+  children: ReactNode;
+}) {
   const needsCamera = isDetectorEnabled(detectors, 'cameraMic');
   const needsRightClickBlock = isDetectorEnabled(detectors, 'rightClickDisabled');
   const needsBlur = isDetectorEnabled(detectors, 'blurDetection');
   const needsGesture = isDetectorEnabled(detectors, 'handGestureDetection');
-  // Blur and gesture detection both need a live camera feed to analyse, even
-  // on courses that didn't separately turn the cameraMic detector on.
-  const needsCameraStream = needsCamera || needsBlur || needsGesture;
+  const needsVoice = isDetectorEnabled(detectors, 'voiceDetection');
+  const needsFaceCount = isDetectorEnabled(detectors, 'faceCountDetection');
+  const needsFaceRecognition = isDetectorEnabled(detectors, 'faceRecognition');
+  // Every detector below needs a live camera feed to analyse, even on courses
+  // that didn't separately turn the cameraMic detector on.
+  const needsCameraStream = needsCamera || needsBlur || needsGesture || needsVoice || needsFaceCount || needsFaceRecognition;
   const camera = useCameraPresence({ audio: true, enabled: needsCameraStream });
   const cameraReady = camera.state === 'on';
 
@@ -170,6 +188,13 @@ function ProctoringEnforcement({ detectors, children }: { detectors?: DetectorSe
   const isBlurry = useBlurDetector(captureRef, needsBlur && cameraReady);
   const gesture = useGestureDetector(captureRef, needsGesture && cameraReady);
   useThumbsUpChallenge(gesture, needsGesture && cameraReady);
+  const isSpeaking = useVoiceDetector(camera.stream, needsVoice && cameraReady);
+  const faceCount = useFaceCountDetector(captureRef, needsFaceCount && cameraReady);
+
+  const faceReference = useFaceReference(courseId, versionId);
+  const referenceEmbedding = needsFaceRecognition ? faceReference.data?.faceEmbedding : undefined;
+  const recognitionStatus = useFaceRecognition(captureRef, referenceEmbedding, needsFaceRecognition && cameraReady);
+  const [retakingReference, setRetakingReference] = useState(false);
 
   useEffect(() => {
     if (!needsRightClickBlock) return;
@@ -191,7 +216,37 @@ function ProctoringEnforcement({ detectors, children }: { detectors?: DetectorSe
     }
   }, [isBlurry, needsBlur]);
 
-  const blocked = needsCameraStream && !cameraReady;
+  useEffect(() => {
+    if (!needsVoice) return;
+    if (isSpeaking) {
+      toast.message('Voice detected', { id: 'voice-warning', description: 'Keep your surroundings quiet during this lesson.' });
+    } else {
+      toast.dismiss('voice-warning');
+    }
+  }, [isSpeaking, needsVoice]);
+
+  // Face recognition needs a saved reference before it can run at all.
+  const needsEnrollment = needsFaceRecognition && faceReference.isSuccess && !faceReference.data.faceEmbedding;
+  const showEnrollment = needsEnrollment || retakingReference;
+
+  let blockNotice: { title: string; message: string; showRetake?: boolean } | null = null;
+  if (needsFaceCount && faceCount !== null && faceCount !== 1) {
+    blockNotice =
+      faceCount === 0
+        ? { title: 'No face detected', message: 'Make sure your face is clearly visible to the camera.' }
+        : { title: 'Multiple faces detected', message: 'Only one person should be visible to the camera during this lesson.' };
+  } else if (needsFaceRecognition && !showEnrollment && faceReference.data?.faceEmbedding && recognitionStatus !== 'matched') {
+    blockNotice =
+      recognitionStatus === 'mismatched'
+        ? {
+            title: 'Face doesn’t match',
+            message: 'We couldn’t confirm this is you. Make sure you’re well-lit and facing the camera, or add a new reference photo.',
+            showRetake: true,
+          }
+        : { title: 'Checking it’s you…', message: 'Face the camera directly in good light.' };
+  }
+
+  const blocked = (needsCameraStream && !cameraReady) || showEnrollment || blockNotice !== null;
 
   return (
     <>
@@ -210,7 +265,56 @@ function ProctoringEnforcement({ detectors, children }: { detectors?: DetectorSe
           />
         </>
       )}
+      {cameraReady && showEnrollment && (
+        <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 overflow-y-auto bg-background">
+          <FaceEnrollment
+            videoRef={captureRef}
+            stream={camera.stream}
+            courseId={courseId}
+            versionId={versionId}
+            onDone={() => {
+              setRetakingReference(false);
+              void faceReference.refetch();
+            }}
+          />
+        </div>
+      )}
+      {cameraReady && !showEnrollment && blockNotice && (
+        <BlockingNotice
+          title={blockNotice.title}
+          message={blockNotice.message}
+          action={blockNotice.showRetake ? { label: 'Add a new reference photo', onClick: () => setRetakingReference(true) } : undefined}
+        />
+      )}
     </>
+  );
+}
+
+/** Full-screen notice for a proctoring block that isn't "camera is off" (that's CameraRequired). */
+function BlockingNotice({
+  title,
+  message,
+  action,
+}: {
+  title: string;
+  message: string;
+  action?: { label: string; onClick: () => void };
+}) {
+  return (
+    <div role="dialog" aria-modal="true" aria-labelledby="proctoring-block-title" className="fixed inset-0 z-50 grid place-items-center bg-background/80 px-4 backdrop-blur-sm">
+      <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-6 text-center shadow-xl">
+        <ShieldAlertIcon className="mx-auto size-8 text-amber-600" aria-hidden />
+        <h2 id="proctoring-block-title" className="mt-4 font-aleo text-xl">
+          {title}
+        </h2>
+        <p className="mt-2 text-sm text-muted-foreground">{message}</p>
+        {action && (
+          <Button variant="outline" size="sm" className="mt-4" onClick={action.onClick}>
+            {action.label}
+          </Button>
+        )}
+      </div>
+    </div>
   );
 }
 

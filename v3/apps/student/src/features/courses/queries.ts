@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { unwrap } from '@vibe/api';
 
 import { api } from '@/lib/api';
@@ -104,7 +104,7 @@ export const courseKeys = {
   currentPath: (courseId: string, versionId: string) => ['progress', 'current-path', courseId, versionId] as const,
   moduleProgress: (courseId: string, versionId: string) => ['progress', 'modules', courseId, versionId] as const,
   ethicsConsent: (courseId: string, versionId: string) => ['ethics-consent', courseId, versionId] as const,
-  faceReference: ['face-reference'] as const,
+  faceReference: (courseId: string, versionId: string) => ['face-reference', courseId, versionId] as const,
 };
 
 export function useEnrollments(tab: 'active' | 'archived' = 'active', search = '') {
@@ -206,15 +206,29 @@ export function useEthicsConsent(courseId: string, versionId: string) {
   });
 }
 
-export function useFaceReference() {
+export interface FaceReference {
+  label: string;
+  profileImage: string | null;
+  faceEmbedding: number[] | null;
+}
+
+/** The embedding only comes back if `courseId`/`versionId` has faceRecognition enabled. */
+export function useFaceReference(courseId: string, versionId: string) {
   return useQuery({
-    queryKey: courseKeys.faceReference,
+    queryKey: courseKeys.faceReference(courseId, versionId),
     queryFn: async () =>
-      unwrap(await api.GET('/api/users/me/face-reference', {})) as unknown as {
-        label: string;
-        profileImage: string | null;
-        faceEmbedding: number[] | null;
-      },
+      unwrap(
+        await api.GET('/api/users/me/face-reference', { params: { query: { courseId, versionId } } }),
+      ) as unknown as FaceReference,
+  });
+}
+
+export function useUpdateFaceReference(courseId: string, versionId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { profileImage: string; faceEmbedding: number[] }) =>
+      unwrap(await api.PATCH('/api/users/me/face-reference', { body: input })),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: courseKeys.faceReference(courseId, versionId) }),
   });
 }
 

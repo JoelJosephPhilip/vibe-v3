@@ -58,7 +58,15 @@ export function isProctored(detectors?: DetectorSetting[]) {
 }
 
 /** Detectors this build can actually enforce. Extend as more are ported. */
-const SUPPORTED_DETECTORS = new Set(['cameraMic', 'rightClickDisabled', 'blurDetection', 'handGestureDetection']);
+const SUPPORTED_DETECTORS = new Set([
+  'cameraMic',
+  'rightClickDisabled',
+  'blurDetection',
+  'handGestureDetection',
+  'voiceDetection',
+  'faceCountDetection',
+  'faceRecognition',
+]);
 
 /** Enabled detectors this build can't enforce yet — a non-empty result means the lesson must stay blocked. */
 export function unsupportedDetectors(detectors?: DetectorSetting[]) {
