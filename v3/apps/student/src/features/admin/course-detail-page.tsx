@@ -14,10 +14,12 @@ import {
 import { useState, type FormEvent, type ReactNode } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useCourseVersion, useSectionItems, type CourseModule, type CourseSection } from '@/features/courses/queries';
+import { useCourseSettings } from '@/features/learn/queries';
 import { cn } from '@/lib/utils';
 
 import {
@@ -31,6 +33,7 @@ import {
   useDeleteSection,
   useInviteUser,
   useItemDetail,
+  useUpdateCourseSettings,
   useUpdateItem,
   useUpdateModule,
   useUpdateSection,
@@ -51,6 +54,18 @@ function errorMessage(error: unknown): string {
 }
 
 const ITEM_ICON: Record<string, typeof VideoIcon> = { VIDEO: VideoIcon, QUIZ: FileTextIcon };
+
+/** Mirrors the backend's ProctoringComponent enum order exactly (ISettingRepository.ts). */
+const DETECTORS = [
+  { key: 'cameraMic', label: 'Camera + microphone', implemented: true },
+  { key: 'blurDetection', label: 'Blur detection', implemented: true },
+  { key: 'faceCountDetection', label: 'Face count', implemented: true },
+  { key: 'handGestureDetection', label: 'Hand gesture', implemented: true },
+  { key: 'voiceDetection', label: 'Voice detection', implemented: true },
+  { key: 'virtualBackgroundDetection', label: 'Virtual background', implemented: false },
+  { key: 'rightClickDisabled', label: 'Right-click disabled', implemented: true },
+  { key: 'faceRecognition', label: 'Face recognition', implemented: true },
+] as const;
 
 export function CourseDetailPage({ courseId, versionId }: { courseId: string; versionId: string }) {
   const course = useCourse(courseId);
@@ -100,6 +115,13 @@ export function CourseDetailPage({ courseId, versionId }: { courseId: string; ve
               <PlusIcon className="size-4" aria-hidden /> Add module
             </Button>
           )}
+        </div>
+      </section>
+
+      <section className="mt-8 border-b border-border pb-8">
+        <h2 className="font-semibold">Proctoring</h2>
+        <div className="mt-4 max-w-sm">
+          <ProctoringSection courseId={courseId} versionId={versionId} />
         </div>
       </section>
 
@@ -589,6 +611,64 @@ function EditItemForm({
       </Button>
       {updateItem.isError && <Status kind="error">{errorMessage(updateItem.error)}</Status>}
     </form>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Proctoring
+// ---------------------------------------------------------------------------
+
+function ProctoringSection({ courseId, versionId }: { courseId: string; versionId: string }) {
+  const settings = useCourseSettings(courseId, versionId);
+  const updateSettings = useUpdateCourseSettings(courseId, versionId);
+  const [toggles, setToggles] = useState<Record<string, boolean>>({});
+  const [loaded, setLoaded] = useState(false);
+
+  if (settings.data && !loaded) {
+    const current = settings.data.settings.proctors?.detectors ?? [];
+    setToggles(Object.fromEntries(DETECTORS.map((d) => [d.key, current.find((c) => c.detectorName === d.key)?.settings.enabled ?? false])));
+    setLoaded(true);
+  }
+
+  function save() {
+    if (!settings.data) return;
+    const { proctors: _proctors, ...rest } = settings.data.settings;
+    updateSettings.mutate({
+      ...rest,
+      linearProgressionEnabled: settings.data.settings.linearProgressionEnabled ?? false,
+      seekForwardEnabled: settings.data.settings.seekForwardEnabled ?? false,
+      detectors: DETECTORS.map((d) => ({ detectorName: d.key, settings: { enabled: toggles[d.key] ?? false } })),
+    });
+  }
+
+  if (settings.isPending) return <p className="text-sm text-muted-foreground">Loading…</p>;
+  if (settings.isError) return <Status kind="error">{errorMessage(settings.error)}</Status>;
+
+  return (
+    <div className="grid gap-3">
+      {DETECTORS.map((d) => (
+        <div key={d.key} className="flex items-center gap-2">
+          <Checkbox
+            id={`detector-${d.key}`}
+            checked={toggles[d.key] ?? false}
+            disabled={!d.implemented}
+            onCheckedChange={(c) => setToggles((prev) => ({ ...prev, [d.key]: c === true }))}
+          />
+          <Label htmlFor={`detector-${d.key}`} className="text-sm font-normal">
+            {d.label}
+            {!d.implemented && <span className="ml-1.5 text-xs text-muted-foreground">(not implemented yet)</span>}
+          </Label>
+        </div>
+      ))}
+      <div className="mt-2 flex items-center gap-2">
+        <Button size="sm" onClick={save} disabled={updateSettings.isPending}>
+          {updateSettings.isPending && <Loader2Icon className="size-4 animate-spin" aria-hidden />}
+          Save
+        </Button>
+        {updateSettings.isSuccess && <Status kind="ok">Saved.</Status>}
+        {updateSettings.isError && <Status kind="error">{errorMessage(updateSettings.error)}</Status>}
+      </div>
+    </div>
   );
 }
 
