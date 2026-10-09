@@ -25,6 +25,9 @@ import { cn } from '@/lib/utils';
 
 import { CameraBubble, CameraRequired, useCameraPresence } from './camera-presence';
 import { ConsentGate } from './consent-gate';
+import { useBlurDetector } from './detectors/use-blur-detector';
+import { useGestureDetector } from './detectors/use-gesture-detector';
+import { useThumbsUpChallenge } from './detectors/use-thumbs-up-challenge';
 import {
   heartbeat,
   isDetectorEnabled,
@@ -149,7 +152,24 @@ function GreenGate({ lessonRef: ref, item, progress }: { lessonRef: LessonRef; i
 function ProctoringEnforcement({ detectors, children }: { detectors?: DetectorSetting[]; children: ReactNode }) {
   const needsCamera = isDetectorEnabled(detectors, 'cameraMic');
   const needsRightClickBlock = isDetectorEnabled(detectors, 'rightClickDisabled');
-  const camera = useCameraPresence({ audio: true, enabled: needsCamera });
+  const needsBlur = isDetectorEnabled(detectors, 'blurDetection');
+  const needsGesture = isDetectorEnabled(detectors, 'handGestureDetection');
+  // Blur and gesture detection both need a live camera feed to analyse, even
+  // on courses that didn't separately turn the cameraMic detector on.
+  const needsCameraStream = needsCamera || needsBlur || needsGesture;
+  const camera = useCameraPresence({ audio: true, enabled: needsCameraStream });
+  const cameraReady = camera.state === 'on';
+
+  // A hidden video element feeds the frame-capture loops below — separate
+  // from CameraBubble's own self-view video, which isn't exposed as a ref.
+  const captureRef = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    if (captureRef.current) captureRef.current.srcObject = camera.stream;
+  }, [camera.stream]);
+
+  const isBlurry = useBlurDetector(captureRef, needsBlur && cameraReady);
+  const gesture = useGestureDetector(captureRef, needsGesture && cameraReady);
+  useThumbsUpChallenge(gesture, needsGesture && cameraReady);
 
   useEffect(() => {
     if (!needsRightClickBlock) return;
@@ -158,15 +178,30 @@ function ProctoringEnforcement({ detectors, children }: { detectors?: DetectorSe
     return () => document.removeEventListener('contextmenu', onContextMenu);
   }, [needsRightClickBlock]);
 
-  const blocked = needsCamera && camera.state !== 'on';
+  useEffect(() => {
+    if (!needsBlur) return;
+    if (isBlurry) {
+      toast.warning('Your camera view looks blurry', {
+        id: 'blur-warning',
+        description: 'Make sure your camera lens is clean and you’re in focus.',
+        duration: Infinity,
+      });
+    } else {
+      toast.dismiss('blur-warning');
+    }
+  }, [isBlurry, needsBlur]);
+
+  const blocked = needsCameraStream && !cameraReady;
 
   return (
     <>
       <div className={cn(blocked && 'pointer-events-none select-none blur-sm')} aria-hidden={blocked}>
         {children}
       </div>
-      {needsCamera && (
+      {needsCameraStream && (
         <>
+          {/* eslint-disable-next-line jsx-a11y/media-has-caption -- hidden frame source for detectors, not a media player */}
+          <video ref={captureRef} autoPlay playsInline muted className="hidden" aria-hidden="true" />
           <CameraBubble stream={camera.stream} />
           <CameraRequired
             state={camera.state}
